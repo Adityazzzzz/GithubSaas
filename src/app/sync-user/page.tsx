@@ -15,7 +15,7 @@ const SyncUser = async()=>{
 
     await db.user.upsert({
         where:{
-            EmailAddress: user.emailAddresses[0]?.emailAddress ?? ""
+            emailAddress: user.emailAddresses[0]?.emailAddress ?? ""
         },
         update:{
             imageUrl: user.imageUrl,

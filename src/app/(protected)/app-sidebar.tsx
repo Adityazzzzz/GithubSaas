@@ -93,12 +93,14 @@ export function AppSidebar(){
                             })}
                             
                             <div className="h-2"></div>
+                            {open && (
+                                <SidebarMenuItem>
+                                    <Link href='/create'>
+                                        <Button size='sm' variant={'outline'} className="w-fit"><Plus/>Create Project</Button>
+                                    </Link>
+                                </SidebarMenuItem>
+                            )}
                             
-                            <SidebarMenuItem>
-                                <Link href='/create'>
-                                    <Button size='sm' variant={'outline'} className="w-fit"><Plus/>Create Project</Button>
-                                </Link>
-                            </SidebarMenuItem>
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>

@@ -1,7 +1,8 @@
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure } from "../trpc";
 
 export const projectRouter = createTRPCRouter({
-    createProject: publicProcedure.input().mutation(async({ctx,input})=>{
+    createProject: protectedProcedure.input().mutation(async({ctx,input})=>{
+        ctx.user.userId
         console.log('hi');
         return true
     })

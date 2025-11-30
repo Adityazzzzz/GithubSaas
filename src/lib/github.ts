@@ -34,6 +34,9 @@ export const getCommitHashes = async (githubUrl:string):Promise<Response[]>=>{
 export const pollCommits = async(projectId:string)=>{
     const {project,githubUrl} = await fetchProjectGithubUrl(projectId)
     const commitHashes = await getCommitHashes(githubUrl)
+    const unprocessedCommits = await filterUnprocessedCommits(projectId,commitHashes)
+    console.log(unprocessedCommits)
+    return unprocessedCommits
 }
 
 async function fetchProjectGithubUrl(projectId:string) {
@@ -50,3 +53,22 @@ async function fetchProjectGithubUrl(projectId:string) {
     }
     return {project,githubUrl:project?.githubUrl}
 }
+
+async function filterUnprocessedCommits(projectId:string,commitHashes:Response[]): Promise<Response[]>{
+    const processedCommits = await db.commit.findMany({ 
+        where: {
+            projectId: projectId,
+        },
+        select: {
+            commitHash: true,
+        }
+    });
+    const unprocessedCommits = commitHashes.filter((commit) => 
+        !processedCommits.some((processedCommit) => 
+            processedCommit.commitHash === commit.commitHash
+        )
+    );
+    return unprocessedCommits;
+}
+
+pollCommits('clz588888')

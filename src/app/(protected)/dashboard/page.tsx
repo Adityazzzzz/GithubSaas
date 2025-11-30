@@ -9,6 +9,7 @@ const DashboardPage = () => {
     const {project} = useProject()
     return <>
         <div>
+            {project?.name}
             <div className='flex items-center justify-between flex-wrap gap-y-4'>
                 {/* github link */}
                 <div className='w-fit rounded-md bg-primary px-4 py-3'>

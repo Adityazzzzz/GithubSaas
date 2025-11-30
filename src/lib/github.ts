@@ -16,9 +16,14 @@ type Response={
 }
 
 export const getCommitHashes = async (githubUrl:string):Promise<Response[]>=>{
+    const [owner,repo] = githubUrl.split('/').slice(-2);
+    if(!owner || !repo){
+        throw new Error("Invalid github url")
+    }
+
     const {data} = await octokit.rest.repos.listCommits({
-        owner:'docker',
-        repo: 'genai-stack'
+        owner,
+        repo,
     })
     const sortedCommits = data.sort((a:any,b:any)=>new Date(b.commit.author.date).getTime() - new Date(a.commit.author.date).getTime()) as any[]
 
@@ -35,9 +40,14 @@ export const pollCommits = async(projectId:string)=>{
     const {project,githubUrl} = await fetchProjectGithubUrl(projectId)
     const commitHashes = await getCommitHashes(githubUrl)
     const unprocessedCommits = await filterUnprocessedCommits(projectId,commitHashes)
-    console.log(unprocessedCommits)
+
     return unprocessedCommits
 }
+
+async function summarizeCommits(githubUrl:string,commitHash:string){
+
+}
+
 
 async function fetchProjectGithubUrl(projectId:string) {
     const project = await db.project.findUnique({
@@ -71,4 +81,4 @@ async function filterUnprocessedCommits(projectId:string,commitHashes:Response[]
     return unprocessedCommits;
 }
 
-pollCommits('clz588888')
+await pollCommits('clz588888')

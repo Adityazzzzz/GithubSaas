@@ -42,12 +42,32 @@ export const pollCommits = async(projectId:string)=>{
     const {project,githubUrl} = await fetchProjectGithubUrl(projectId)
     const commitHashes = await getCommitHashes(githubUrl)
     const unprocessedCommits = await filterUnprocessedCommits(projectId,commitHashes)
-    const summarizeCommits = await Promise.allSettled()
-
-    return unprocessedCommits
+    const summaryResponses = await Promise.allSettled(unprocessedCommits.map(commit => {
+        return summarizeCommit(githubUrl, commit.commitHash)
+    }))
+    const summaries = summaryResponses.map((response)=>{
+        if(response.status === 'fulfilled'){
+            return response.value as string
+        }
+        return ""
+    })
+    const commits = await db.commit.createMany({
+        data:summaries.map((summary,index)=>{
+            return{
+                projectId:projectId,
+                commitHash: unprocessedCommits[index]!.commitHash,
+                commitMessage: unprocessedCommits[index]!.commitMessage ,
+                commitAuthorName: unprocessedCommits[index]!.commitAuthorName ,
+                commitAuthorAvatar: unprocessedCommits[index]!.commitAuthorAvatar ,
+                commitDate: unprocessedCommits[index]!.commitDate,
+                summary
+            }
+        })
+    })
+    return commits
 }
 
-async function summarizeCommits(githubUrl:string,commitHash:string){
+async function summarizeCommit(githubUrl:string,commitHash:string){
     const {data} = await axios.get(`${githubUrl}/commit/${commitHash}.diff`,{
         headers:{
             Accept:'application/vnd.github.v3.diff'

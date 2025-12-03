@@ -1,17 +1,15 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  throw new Error('GEMINI_API_KEY environment variable is not set.');
-}
+if (!apiKey) throw new Error("GEMINI_API_KEY environment variable is not set.");
+
 const genAI = new GoogleGenerativeAI(apiKey);
 const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash'
-})
+  model: "gemini-2.5-flash", // <<< IMPORTANT
+});
 
 export const aiSummariseCommit = async (diff: string) => {
-  // https://github.com/docker/genai-stack/commit/<commithash>.diff
-  const response = await model.generateContent([
+  const result = await model.generateContent([
     `You are an expert programmer, and you are trying to summarize a git diff.
 Reminders about the git diff format:
 For every file, there are a few metadata lines, like (for example):
@@ -47,8 +45,8 @@ It is given only as an example of appropriate comments.
 Please summarize the following diff file: \n\n${diff}`,
   ]);
 
-  return response.response.text();
+   return result.response.text();
 };
 
 
-console.log(await aiSummariseCommit(''))
+console.log(await aiSummariseCommit(""))

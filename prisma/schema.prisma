@@ -38,6 +38,7 @@ model Project {
     deletedAt DateTime?
     userToProjects UserToProject[]
     commits Commit[]
+    sourceCodeEmbeddings SourceCodeEmbedding[]
 }
 
 model UserToProject {

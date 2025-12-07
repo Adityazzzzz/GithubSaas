@@ -27,6 +27,7 @@ export const indexGithubRepo = async (projectId: string, githubUrl: string, gith
         const sourceCodeEmbedding = await db.sourceCodeEmbedding.create({
             data:{
                 summary:embedding.summary,
+                summaryEmbedding: embedding,
                 sourceCode:embedding.sourceCode,
                 fileName:embedding.fileName,
                 projectId

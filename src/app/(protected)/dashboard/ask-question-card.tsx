@@ -11,6 +11,11 @@ import React from 'react'
 import { askQuestion } from './action'
 import { readStreamableValue } from '@ai-sdk/rsc'
 import CodeReferences from './code-reference'
+import { api } from '@/trpc/react'
+import { toast } from 'sonner'
+const saveAnswer = api.project.saveAnswer.useMutation(
+
+)
 
 const AskQuestionCard = () => {
     const {project,projectId} = useProject()
@@ -43,10 +48,29 @@ const AskQuestionCard = () => {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className='sm:max-w-[80vw]'>
                 <DialogHeader>
-                    <DialogTitle>
-                        {/* <Image src={} alt='' height={40} width={40}/> */}
-                        GitBrain
-                    </DialogTitle>
+                    <div className="flex items-center gap-2">
+                        <DialogTitle>
+                            {/* <Image src={} alt='' height={40} width={40}/> */}
+                            GitBrain
+                        </DialogTitle>
+                        <Button disabled={saveAnswer.isPending} variant={'outline'} onClick={()=>{
+                            saveAnswer.mutate({
+                                projectId:project!.id,
+                                question,
+                                answer,
+                                filesReferences,
+                            },{
+                                onSuccess:()=>{
+                                    toast.success('Answer saved!')
+                                },
+                                onError:()=>{
+                                    toast.error('Failed to save answer!')
+                                }
+                            })
+                        }}>
+
+                        </Button>
+                    </div>
                 </DialogHeader>
 
                 <MDEditor.Markdown 

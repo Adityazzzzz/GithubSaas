@@ -1,4 +1,5 @@
 'use client'
+import MDEditor from '@uiw/react-md-editor'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog'
@@ -19,12 +20,14 @@ const AskQuestionCard = () => {
     const [answer,setAnswer] = React.useState('')
 
     const onSubmit = async(e:React.FormEvent<HTMLFormElement>)=>{
+        setAnswer('')
+        setFilesReferences([])
         e.preventDefault()
         if(!project?.id) return
         setLoading(true)
-        setOpen(true) 
 
         const {output,filesReferences} = await askQuestion(question,project.id)
+        setOpen(true) 
         setFilesReferences(filesReferences)
 
         for await (const delta of readStreamableValue(output)){
@@ -37,7 +40,7 @@ const AskQuestionCard = () => {
 
     return <>
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent>
+            <DialogContent className='sm:max-w-[80vw]'>
                 <DialogHeader>
                     <DialogTitle>
                         {/* <Image src={} alt='' height={40} width={40}/> */}
@@ -45,11 +48,18 @@ const AskQuestionCard = () => {
                     </DialogTitle>
                 </DialogHeader>
 
-                {answer}
-                <h1>Files References</h1>
-                {filesReferences.map(file=>{
-                    return <span>{file.fileName}</span>
-                })}            
+                <MDEditor.Markdown 
+                    source={answer} 
+                    style={{ 
+                        backgroundColor: 'transparent', 
+                        color: '#333'
+                    }}
+                    className='w-full max-h-[40vh] overflow-y-auto' 
+                />
+                
+                <Button type='button' onClick={()=>setOpen(false)}>
+                    Close
+                </Button>
 
             </DialogContent>
         </Dialog>
@@ -65,7 +75,7 @@ const AskQuestionCard = () => {
                         onChange={(e)=>setQuestion(e.target.value)}
                     />
                     <div className='h-4'></div>
-                    <Button type='submit'>
+                    <Button type='submit' disabled={loading}>
                         Ask GitBrain!
                     </Button>
                 </form>

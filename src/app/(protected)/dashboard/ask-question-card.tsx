@@ -10,6 +10,7 @@ import Image from 'next/image'
 import React from 'react'
 import { askQuestion } from './action'
 import { readStreamableValue } from '@ai-sdk/rsc'
+import CodeReferences from './code-reference'
 
 const AskQuestionCard = () => {
     const {project,projectId} = useProject()
@@ -56,6 +57,8 @@ const AskQuestionCard = () => {
                     }}
                     className='w-full max-h-[40vh] overflow-y-auto' 
                 />
+                <div className="h-4"></div>
+                <CodeReferences filesReferences={filesReferences}/>
                 
                 <Button type='button' onClick={()=>setOpen(false)}>
                     Close

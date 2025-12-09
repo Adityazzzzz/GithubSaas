@@ -68,7 +68,6 @@ const AskQuestionCard = () => {
                                 }
                             })
                         }}>
-
                         </Button>
                     </div>
                 </DialogHeader>

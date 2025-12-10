@@ -22,8 +22,13 @@ export const projectRouter = createTRPCRouter({
                 }
             }
         })
-        await indexGithubRepo(project.id,input.githubUrl,input.githubToken)
-        await pollCommits(project.id)
+        indexGithubRepo(project.id, input.githubUrl, input.githubToken)
+            .then(() => console.log("Creation: Indexing completed"))
+            .catch((e) => console.error("Creation: Indexing failed", e));
+
+        pollCommits(project.id)
+            .then(() => console.log("Creation: Polling commits completed"))
+            .catch((e) => console.error("Creation: Polling commits failed", e));
         return project
     }),
     getProjects: protectedProcedure.query(async({ctx})=>{

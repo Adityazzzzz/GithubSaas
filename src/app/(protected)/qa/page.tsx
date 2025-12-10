@@ -1,3 +1,4 @@
+'use client'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import useProject from '@/hooks/use-project'
 import { api } from '@/trpc/react'

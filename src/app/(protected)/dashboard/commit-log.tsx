@@ -42,8 +42,6 @@ const CommitLog = () => {
                         {commit.summary}
                     </pre>
                 </div>
-
-                
                 </>
             </li>
         })}

@@ -5,7 +5,7 @@ import { db } from '@/server/db';
 
 export const loadGithubRepo = async (githubUrl: string, githubToken?: string) => {
     const loader = new GithubRepoLoader(githubUrl, {
-        accessToken: githubToken || '',
+        accessToken: githubToken || process.env.GITHUB_TOKEN || '',
         branch: 'main',
         ignoreFiles: ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb'],
         recursive: true,
@@ -17,27 +17,54 @@ export const loadGithubRepo = async (githubUrl: string, githubToken?: string) =>
     return docs
 }
 
+// export const indexGithubRepo = async (projectId: string, githubUrl: string, githubToken?: string) => {
+//     const docs = await loadGithubRepo(githubUrl, githubToken)
+//     const allEmbeddings = await generateEmbeddings(docs)
+//     await Promise.allSettled(allEmbeddings.map(async(embedding,index)=>{
+//         console.log(`processing ${index} of ${allEmbeddings.length}`)
+//         if(!embedding) return
+
+//         const sourceCodeEmbedding = await db.sourceCodeEmbedding.create({
+//             data:{
+//                 summary:embedding.summary,
+//                 summaryEmbedding: embedding,
+//                 sourceCode:embedding.sourceCode,
+//                 fileName:embedding.fileName,
+//                 projectId
+//             }
+//         })
+//         await db.$executeRaw`
+//             UPDATE "SourceCodeEmbedding"
+//             SET "summaryEmbedding" = ${embedding.embedding}::vector
+//             WHERE "id" = ${sourceCodeEmbedding.id}
+//         `
+//     }))
+// }
+
 export const indexGithubRepo = async (projectId: string, githubUrl: string, githubToken?: string) => {
+
     const docs = await loadGithubRepo(githubUrl, githubToken)
     const allEmbeddings = await generateEmbeddings(docs)
-    await Promise.allSettled(allEmbeddings.map(async(embedding,index)=>{
+    await Promise.allSettled(allEmbeddings.map(async(result, index) => {
         console.log(`processing ${index} of ${allEmbeddings.length}`)
-        if(!embedding) return
-
-        const sourceCodeEmbedding = await db.sourceCodeEmbedding.create({
-            data:{
-                summary:embedding.summary,
-                summaryEmbedding: embedding,
-                sourceCode:embedding.sourceCode,
-                fileName:embedding.fileName,
-                projectId
-            }
-        })
-        await db.$executeRaw`
-            UPDATE "SourceCodeEmbedding"
-            SET "summaryEmbedding" = ${embedding.embedding}::vector
-            WHERE "id" = ${sourceCodeEmbedding.id}
-        `
+        if(!result) return
+        try{
+            const sourceCodeEmbedding = await db.sourceCodeEmbedding.create({
+                data:{
+                    summary: result.summary,
+                    sourceCode: result.sourceCode,
+                    fileName: result.fileName,
+                    projectId,
+                }
+            })
+            await db.$executeRaw`
+                UPDATE "SourceCodeEmbedding"
+                SET "summaryEmbedding" = ${result.embedding}::vector
+                WHERE "id" = ${sourceCodeEmbedding.id}`
+        } 
+        catch(error){
+            console.error("Error indexing file:", result.fileName, error)
+        }
     }))
 }
 

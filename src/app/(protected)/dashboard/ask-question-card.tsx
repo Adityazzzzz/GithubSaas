@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import useProject from '@/hooks/use-project'
 import { DialogTitle } from '@radix-ui/react-dialog'
 import Image from 'next/image'
 import React from 'react'
@@ -13,9 +12,7 @@ import { readStreamableValue } from '@ai-sdk/rsc'
 import CodeReferences from './code-reference'
 import { api } from '@/trpc/react'
 import { toast } from 'sonner'
-const saveAnswer = api.project.saveAnswer.useMutation(
-
-)
+import useProject from '@/hooks/use-project'
 
 const AskQuestionCard = () => {
     const {project,projectId} = useProject()
@@ -24,6 +21,7 @@ const AskQuestionCard = () => {
     const [loading, setLoading] = React.useState(false)
     const [filesReferences,setFilesReferences] = React.useState<{fileName:string;sourceCode:string;summary:string}[]>([])
     const [answer,setAnswer] = React.useState('')
+    const saveAnswer = api.project.saveAnswer.useMutation()
 
     const onSubmit = async(e:React.FormEvent<HTMLFormElement>)=>{
         setAnswer('')
@@ -32,16 +30,24 @@ const AskQuestionCard = () => {
         if(!project?.id) return
         setLoading(true)
 
-        const {output,filesReferences} = await askQuestion(question,project.id)
-        setOpen(true) 
-        setFilesReferences(filesReferences)
+        try {
+            const { output, filesReferences } = await askQuestion(question, project.id)
+            setOpen(true)
+            setFilesReferences(filesReferences)
 
-        for await (const delta of readStreamableValue(output)){
-            if(delta) {
-                setAnswer(ans=>ans+delta)
+            for await (const delta of readStreamableValue(output)) {
+                if (delta) {
+                    setAnswer(ans => ans + delta)
+                }
             }
+        } 
+        catch (error) {
+            console.error("Failed to ask question:", error)
+            // Optional: toast.error("Something went wrong!")
+        } 
+        finally {
+            setLoading(false) // 👈 ALWAYS stop loading, even if it fails
         }
-        setLoading(false)
     }
 
     return <>
@@ -68,6 +74,7 @@ const AskQuestionCard = () => {
                                 }
                             })
                         }}>
+                            Save Answer
                         </Button>
                     </div>
                 </DialogHeader>
@@ -78,10 +85,10 @@ const AskQuestionCard = () => {
                         backgroundColor: 'transparent', 
                         color: '#333'
                     }}
-                    className='w-full max-h-[40vh] overflow-y-auto' 
+                    className='w-full max-h-none overflow-y-auto' 
                 />
                 <div className="h-4"></div>
-                <CodeReferences filesReferences={filesReferences}/>
+                <CodeReferences filesReferences={filesReferences as any}/>
                 
                 <Button type='button' onClick={()=>setOpen(false)}>
                     Close

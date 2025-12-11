@@ -1,16 +1,23 @@
 'use client'
-import {CircularProgressbar,buildStyles} from 'react-circular-progressbar'
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar'
 import { Card } from '@/components/ui/card'
 import { useDropzone } from 'react-dropzone'
 import React from 'react'
-import { uploadFile } from '@/lib/firebase'
+import { Client, Storage, ID } from "appwrite" 
 import { Presentation, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+const client = new Client()
+    .setEndpoint('https://fra.cloud.appwrite.io/v1')
+    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!); 
+
+const storage = new Storage(client);
 
 const MeetingCard = () => {
     const [isUploading, setIsUploading] = React.useState(false)
     const [progress, setProgress] = React.useState(0)
-    const { getRootProps, getInputProps, isDragAccept } = useDropzone({
+
+    const { getRootProps, getInputProps } = useDropzone({
         accept: {
             'audio/*': ['.mp3', '.wav', '.m4a']
         },
@@ -18,13 +25,49 @@ const MeetingCard = () => {
         maxSize: 50_000_000,
         onDrop: async acceptedFiles => {
             setIsUploading(true)
-            console.log(acceptedFiles)
             const file = acceptedFiles[0]
-            const downloadUrl = await uploadFile(file as File,setProgress)
-            window.alert(downloadUrl)
-            setIsUploading(false)
+
+            if (!file) {
+                setIsUploading(false)
+                return
+            }
+            
+            try {
+                const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID!;
+                const promise = storage.createFile(
+                    bucketId,
+                    ID.unique(),
+                    file,
+                    [], 
+                    (progress) => { 
+                        console.log("Upload Progress:", progress.progress);
+                        if (setProgress) {
+                            setProgress(progress.progress); 
+                        }
+                    }
+                );
+                setProgress(50) 
+                
+                const response = await promise;
+                const fileUrl = storage.getFileView(
+                    bucketId,
+                    response.$id
+                );
+
+                setProgress(100)
+                window.alert("Upload Success! URL: " + fileUrl)
+                console.log("File URL:", fileUrl)
+
+            } catch (error: any) {
+                console.error(error)
+                window.alert("Error: " + error.message)
+            } finally {
+                setIsUploading(false)
+                setProgress(0)
+            }
         }
     })
+
     return (
         <Card className='col-span-1 flex flex-col items-center justify-center p-10' {...getRootProps()}>
             {!isUploading && (
@@ -49,9 +92,17 @@ const MeetingCard = () => {
             )}
 
             {isUploading && (
-                <div className='flex items-center justify-center'>
-                    <CircularProgressbar value={progress} text={`${progress}%`} className='size-20'/>
-                    <p className='text-sm text-gray-500 text-center'>Uploading your meeting...</p>
+                <div className='flex flex-col items-center justify-center'>
+                    <CircularProgressbar 
+                        value={progress} 
+                        text={`${progress}%`} 
+                        className='size-20'
+                        styles={buildStyles({
+                            pathColor: `#2563eb`,
+                            textColor: '#2563eb',
+                        })}
+                    />
+                    <p className='text-sm text-gray-500 text-center mt-2'>Uploading to Appwrite...</p>
                 </div>
             )}
         </Card>

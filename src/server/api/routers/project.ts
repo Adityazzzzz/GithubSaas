@@ -100,6 +100,14 @@ export const projectRouter = createTRPCRouter({
             where: {
                 projectId: input.projectId,
             },
+            select: {
+                id: true,
+                name: true,     
+                meetingUrl: true,
+                status: true,
+                createdAt: true,
+                issues:true,
+            },
         });
     }),
 })

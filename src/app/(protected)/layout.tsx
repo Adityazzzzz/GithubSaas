@@ -1,13 +1,21 @@
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar' // 1. Import SidebarTrigger
+'use client'
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar' 
 import { UserButton } from '@clerk/nextjs'
-import React from 'react'
 import { AppSidebar } from './app-sidebar'
+import { useEffect, useState } from "react"
 
 type Props = {
     children: React.ReactNode
 }
 
 const SidebarLayout = ({ children }: Props) => {
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    },[])
+    if (!mounted) return null
+
     return (
         <SidebarProvider>
             <AppSidebar />

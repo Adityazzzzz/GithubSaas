@@ -65,6 +65,8 @@ model Meeting{
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  name            String
+
   meetingUrl      String
 
   projectId       String

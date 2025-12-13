@@ -6,6 +6,10 @@ import React from 'react'
 import { Client, Storage, ID } from "appwrite" 
 import { Presentation, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { api } from '@/trpc/react'
+import useProject from '@/hooks/use-project'
+import { toast } from 'sonner'
+import { useRouter } from 'next/router'
 
 const client = new Client()
     .setEndpoint('https://fra.cloud.appwrite.io/v1')
@@ -14,8 +18,11 @@ const client = new Client()
 const storage = new Storage(client);
 
 const MeetingCard = () => {
+    const {project,projectId} = useProject()
+    const router = useRouter()
     const [isUploading, setIsUploading] = React.useState(false)
     const [progress, setProgress] = React.useState(0)
+    const uploadMeeting = api.project.uploadMeeting.useMutation()
 
     const { getRootProps, getInputProps } = useDropzone({
         accept: {
@@ -23,45 +30,64 @@ const MeetingCard = () => {
         },
         multiple: false,
         maxSize: 50_000_000,
-        onDrop: async acceptedFiles => {
-            setIsUploading(true)
+        onDrop: async (acceptedFiles) => {
+            if (!project) return
             const file = acceptedFiles[0]
+            if (!file) return
 
-            if (!file) {
-                setIsUploading(false)
-                return
-            }
-            
+            setIsUploading(true)
+            setProgress(0)
+
+            let fakeProgress = 0
+            const fakeInterval = setInterval(() => {
+                if (fakeProgress < 90) fakeProgress += 2
+                else if (fakeProgress < 99) fakeProgress += 0.2
+                setProgress(Math.floor(fakeProgress))
+            }, 100)
+
             try {
-                const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID!;
-                const promise = storage.createFile(
+                const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID!
+                const response = await storage.createFile(
                     bucketId,
                     ID.unique(),
                     file,
-                    [], 
-                    (progress) => { 
-                        console.log("Upload Progress:", progress.progress);
-                        if (setProgress) {
-                            setProgress(progress.progress); 
+                    [],
+                    (progress) => {
+                        const real = Math.round(progress.progress)
+                        if (real > fakeProgress) {
+                            fakeProgress = real
+                            setProgress(real)
                         }
                     }
-                );
-                setProgress(50) 
-                
-                const response = await promise;
-                const fileUrl = storage.getFileView(
-                    bucketId,
-                    response.$id
-                );
+                )
 
+                clearInterval(fakeInterval)
                 setProgress(100)
-                window.alert("Upload Success! URL: " + fileUrl)
-                console.log("File URL:", fileUrl)
 
-            } catch (error: any) {
+                const fileUrl = storage.getFileView(bucketId, response.$id)
+
+                uploadMeeting.mutate(
+                    {
+                        projectId: project.id,
+                        meetingUrl: fileUrl.toString(), 
+                        name: file.name,
+                    },
+                    {
+                        onSuccess: () => {
+                            toast.success("Meeting uploaded successfully")
+                            router.push("/meetings")
+                        },
+                        onError: () => {
+                            toast.error("Failed to upload meeting")
+                        },
+                    }
+                )
+            }
+            catch (error: any){
                 console.error(error)
-                window.alert("Error: " + error.message)
-            } finally {
+                toast.error("Failed to upload meeting")
+            } 
+            finally{
                 setIsUploading(false)
                 setProgress(0)
             }

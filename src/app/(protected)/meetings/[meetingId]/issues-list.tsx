@@ -27,10 +27,10 @@ const IssuesList = ({ meetingId }: Props) => {
 
                         <div>
                             <h1>
-                                <div className="text-sm leading-6 text-gray-600">
+                                <div className="text-sm leading-6 text-gray-600 dark:text-gray-400">
                                     Meeting on {meeting.createdAt.toLocaleDateString()}
                                 </div>
-                                <div className="mt-1 text-base font-semibold leading-6 text-gray-900">
+                                <div className="mt-1 text-base font-semibold leading-6 text-gray-900 dark:text-white">
                                     {meeting.name}
                                 </div>
                             </h1>
@@ -79,13 +79,15 @@ function IssueCard({ issue}: {issue: NonNullable<RouterOutputs["project"]["getMe
             </DialogContent>
         </Dialog>
 
-        <Card className="relative">
+        <Card className="relative bg-white dark:bg-gray-900 dark:border-gray-700 border-gray-200">
             <CardHeader>
-                <CardTitle className="text-xl">
+                <CardTitle className="text-xl text-gray-900 dark:text-white">
                     {issue.gist}
                 </CardTitle>
-                <div className="border-b"></div>
-                <CardDescription>
+
+                <div className="border-b border-gray-200 dark:border-gray-700"></div>
+    
+                <CardDescription className="text-gray-500 dark:text-gray-400">
                     {issue.headline}
                 </CardDescription>
             </CardHeader>

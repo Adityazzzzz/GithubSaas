@@ -109,10 +109,10 @@ const MeetingCard = () => {
             {!isUploading && (
                 <>
                 <Presentation className="h-10 w-10 animate-bounce" />
-                <h3 className="mt-2 text-sm font-semibold text-gray-900">
+                <h3 className="font-semibold text-gray-900 dark:text-white">
                     Create a new meeting
                 </h3>
-                <p className="mt-1 text-center text-sm text-gray-500">
+                <p className="mt-1 text-center text-gray-500 dark:text-gray-400">
                     Analyse your meeting with GitBrain.
                     <br />
                     Powered by AI.

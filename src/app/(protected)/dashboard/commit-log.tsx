@@ -23,10 +23,15 @@ const CommitLog = () => {
 
                 <>
                 <img src={commit.commitAuthorAvatar} alt='commit avatar' className='relative mt-4 size-8 flex-name rounded-full bg-gray-50'/>
-                <div className='flex-auto rounded-mg bg-white p-3 ring-1 ring-inset ring-gray-200'>
+
+                <div className='flex-auto rounded-md bg-white p-3 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:ring-gray-700'>
                     <div className='flex justify-between gap-4'>
-                        <Link target='_blank' href={`${project?.githubUrl}/commit/${commit.commitHash}`} className='py-0.5 text-xs leading-5 text-gray-500'>
-                            <span className='font-medium text-gray-900'>
+                        <Link 
+                            target='_blank' 
+                            href={`${project?.githubUrl}/commit/${commit.commitHash}`} 
+                            className='py-0.5 text-xs leading-5 text-gray-500 dark:text-gray-400'
+                        >
+                            <span className='font-medium text-gray-900 dark:text-gray-100'>
                                 {commit.commitAuthorName}
                             </span>{" "}
                             <span className='inline-flex items-center'>
@@ -35,10 +40,10 @@ const CommitLog = () => {
                             </span>
                         </Link>
                     </div>
-                    <span className='font-semibold'>
+                    <span className='font-semibold text-gray-800 dark:text-gray-100'>
                         {commit.commitMessage}
                     </span>
-                    <pre className='mt-2 whitespace-pre-wrap text-xs text-gray-500'>
+                    <pre className='mt-2 whitespace-pre-wrap text-xs text-gray-500 dark:text-gray-400'>
                         {commit.summary}
                     </pre>
                 </div>

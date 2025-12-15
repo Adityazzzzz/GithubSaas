@@ -18,27 +18,26 @@ const QAPage = () => {
         <Sheet>
             <AskQuestionCard />
             <div className="h-4"></div>
-            <h1 className='text-xl font-semibold'>Saved Questions</h1>
+            <h1 className='text-xl font-semibold dark:text-white'>Saved Questions</h1>
             <div className="h-2"></div>
             <div className="flex flex-col gap-2">
                 {questions?.map((question, index) => {
                     return <React.Fragment key={question.id}>
                       <SheetTrigger onClick={()=>setQuestionIndex(index)}>
-                          <div className='flex items-center gap-4 bg-white rounded-lg p-4 shadow border'>
+                          <div className='flex items-center gap-4 bg-white dark:bg-gray-900 rounded-lg p-4 shadow border dark:border-gray-700'>
                             <img className='rounded-full' height={30} width={30} src={question.user.imageUrl ?? ""}/>
 
                             <div className='text-left flex flex-col'>
                               <div className='flex items-center gap-3'> 
-                                <p className='text-gray-700 line-clamp-1 text-lg font-medium'>
+                                <p className='text-gray-700 dark:text-gray-100 line-clamp-1 text-lg font-medium'>
                                   {question.question}
                                 </p>
-
-                                <span className='text-xs text-gray-400 whitespace-nowrap'>
+                                <span className='text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap'>
                                   {question.createdAt.toLocaleDateString()}
                                 </span>
                               </div>
 
-                              <p className='text-gray-500 line-clamp-1 text-sm'> 
+                              <p className='text-gray-500 dark:text-gray-400 line-clamp-1 text-sm'> 
                                 {question.answer}
                               </p>
                             </div>

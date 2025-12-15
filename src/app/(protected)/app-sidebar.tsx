@@ -73,40 +73,63 @@ export function AppSidebar(){
                 </SidebarGroup>
 
                 <SidebarGroup>
-                    <SidebarGroupLabel>
-                        Your Projects
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {projects?.map(i=>{
-                                return (
-                                    <SidebarMenuItem key={i.name}>
-                                        <SidebarMenuButton asChild>
-                                            <div onClick={()=>{
-                                                setProjectId(i.id)
-                                            }}>
-                                                <div className={cn('rounded-sm border size-6 flex items-center justify-center text-sm bg-white text-primary',{'bg-primary text-white': i.id===projectId})}>
-                                                    {i.name[0]}
-                                                </div>
-                                                <span>{i.name}</span>
-                                            </div>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                )
-                            })}
-                            
-                            <div className="h-2"></div>
-                            {open && (
-                                <SidebarMenuItem>
-                                    <Link href='/create'>
-                                        <Button size='sm' variant={'outline'} className="w-fit"><Plus/>Create Project</Button>
-                                    </Link>
-                                </SidebarMenuItem>
-                            )}
-                            
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+    <SidebarGroupLabel>
+        Your Projects
+    </SidebarGroupLabel>
+    <SidebarGroupContent>
+        <SidebarMenu>
+            {projects?.map(project => {
+                return (
+                    <SidebarMenuItem key={project.name}>
+                        <SidebarMenuButton asChild>
+                            <div 
+                                onClick={() => setProjectId(project.id)} 
+                                className="cursor-pointer flex items-center gap-2"
+                            >
+                                {/* THE LETTER BOX ICON */}
+                                <div className={cn(
+                                    'flex size-6 items-center justify-center rounded-sm border text-sm font-bold shrink-0', // added shrink-0
+                                    'bg-white text-primary',
+                                    { 'bg-primary text-white': project.id === projectId }
+                                )}>
+                                    {project.name[0]}
+                                </div>
+
+                                {/* THE PROJECT NAME (Hidden when closed) */}
+                                {open && (
+                                    <span className="truncate">{project.name}</span>
+                                )}
+                            </div>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                )
+            })}
+
+            <div className="h-2"></div>
+
+            {/* THE CREATE PROJECT BUTTON */}
+            {/* Show this item regardless of open state, but change its look */}
+            <SidebarMenuItem>
+                <Link href='/create'>
+                    <Button 
+                        size='sm' 
+                        variant={'outline'} 
+                        className={cn(
+                            "w-fit border-sidebar-border bg-sidebar-primary text-sidebar-primary-foreground mb-2 flex items-center",
+                            !open ? "h-9 w-9 p-0 justify-center ml-1" : "gap-2" // Square shape when closed
+                        )}
+                    >
+                        <Plus className="size-4" />
+                        
+                        {/* Only show text when fully open */}
+                        {open && <span>Create Project</span>}
+                    </Button>
+                </Link>
+            </SidebarMenuItem>
+            
+        </SidebarMenu>
+    </SidebarGroupContent>
+</SidebarGroup>
             </SidebarContent>
         </Sidebar>
     )

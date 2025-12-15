@@ -16,7 +16,7 @@ const ArchiveButton = () => {
                 { projectId },
                 {
                     onSuccess:()=>{
-                        toast.success("project archived");
+                        toast.success("Project archived");
                         refetch();
                     },
                     onError:()=>{

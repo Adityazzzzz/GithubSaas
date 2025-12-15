@@ -1,4 +1,5 @@
-import {AssemblyAI} from 'assemblyai'
+import dns from 'node:dns'; 
+dns.setDefaultResultOrder('ipv4first');import {AssemblyAI} from 'assemblyai'
 const client = new AssemblyAI({apiKey:process.env.ASSEMBLYAI_API_KEY!})
 
 function msToTime(ms: number) {

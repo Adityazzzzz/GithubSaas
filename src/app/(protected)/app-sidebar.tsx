@@ -1,11 +1,13 @@
 'use client'
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import useProject from "@/hooks/use-project"
 import { cn } from "@/lib/utils"
-import { Bot, CreditCard, LayoutDashboard, Plus, Presentation,Archive } from "lucide-react"
+import { Bot, CreditCard, LayoutDashboard, Plus, Presentation,Archive, Search } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useState } from "react"
 
 const items = [
     {
@@ -42,6 +44,11 @@ export function AppSidebar(){
     const pathname = usePathname()
     const {open} = useSidebar()
     const {projects,projectId,setProjectId} = useProject()
+    const [searchTerm, setSearchTerm] = useState('')
+
+    const filteredProjects = projects?.filter(project => 
+        project.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     return (
         <Sidebar collapsible="icon" variant="floating">
             <SidebarHeader>
@@ -73,43 +80,61 @@ export function AppSidebar(){
                 </SidebarGroup>
 
                 <SidebarGroup>
-    <SidebarGroupLabel>
-        Your Projects
-    </SidebarGroupLabel>
-    <SidebarGroupContent>
-        <SidebarMenu>
-            {projects?.map(project => {
-                return (
-                    <SidebarMenuItem key={project.name}>
-                        <SidebarMenuButton asChild>
-                            <div 
-                                onClick={() => setProjectId(project.id)} 
-                                className="cursor-pointer flex items-center gap-2"
-                            >
-                                {/* THE LETTER BOX ICON */}
-                                <div className={cn(
-                                    'flex size-6 items-center justify-center rounded-sm border text-sm font-bold shrink-0', // added shrink-0
-                                    'bg-white text-primary',
-                                    { 'bg-primary text-white': project.id === projectId }
-                                )}>
-                                    {project.name[0]}
+        <SidebarGroupLabel>
+            Your Projects
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+            <SidebarMenu>
+                {/* 4. Add the Search Bar (Only visible when sidebar is OPEN) */}
+                {open && (
+                    <div className="px-2 mb-2">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                placeholder="Search projects..." 
+                                className="pl-8 h-9 bg-background/50"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* 5. Map through 'filteredProjects' instead of 'projects' */}
+                {filteredProjects?.map(project => {
+                    return (
+                        <SidebarMenuItem key={project.name}>
+                            <SidebarMenuButton asChild>
+                                <div 
+                                    onClick={() => setProjectId(project.id)} 
+                                    className="cursor-pointer flex items-center gap-2"
+                                >
+                                    <div className={cn(
+                                        'flex size-6 items-center justify-center rounded-sm border text-sm font-bold shrink-0',
+                                        'bg-white text-primary',
+                                        { 'bg-primary text-white': project.id === projectId }
+                                    )}>
+                                        {project.name[0]}
+                                    </div>
+                                    
+                                    {open && (
+                                        <span className="truncate">{project.name}</span>
+                                    )}
                                 </div>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )
+                })}
 
-                                {/* THE PROJECT NAME (Hidden when closed) */}
-                                {open && (
-                                    <span className="truncate">{project.name}</span>
-                                )}
-                            </div>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                )
-            })}
-
-            <div className="h-2"></div>
-
-            {/* THE CREATE PROJECT BUTTON */}
-            {/* Show this item regardless of open state, but change its look */}
-            <SidebarMenuItem>
+                {/* Optional: Show message if no projects found */}
+                {open && filteredProjects?.length === 0 && (
+                     <div className="text-xs text-muted-foreground text-center py-4">
+                        No projects found
+                     </div>
+                )}
+                
+                <div className="h-2"></div>
+                <SidebarMenuItem>
                 <Link href='/create'>
                     <Button 
                         size='sm' 
@@ -126,10 +151,10 @@ export function AppSidebar(){
                     </Button>
                 </Link>
             </SidebarMenuItem>
-            
-        </SidebarMenu>
-    </SidebarGroupContent>
-</SidebarGroup>
+
+            </SidebarMenu>
+        </SidebarGroupContent>
+    </SidebarGroup>
             </SidebarContent>
         </Sidebar>
     )

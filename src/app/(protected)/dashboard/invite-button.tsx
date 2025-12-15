@@ -39,3 +39,4 @@ const InviteButton = () => {
         </>
     );
 };
+export default InviteButton

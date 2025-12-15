@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import useProject from "@/hooks/use-project"
 import { cn } from "@/lib/utils"
-import { Bot, CreditCard, LayoutDashboard, Plus, Presentation } from "lucide-react"
+import { Bot, CreditCard, LayoutDashboard, Plus, Presentation,Archive } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -30,6 +30,13 @@ const items = [
     },
 ]
 
+const options=[
+    {
+        title: "Archived Projects",
+        url: "/archivedprojects",
+        icon:Archive,
+    },
+]
 
 export function AppSidebar(){
     const pathname = usePathname()

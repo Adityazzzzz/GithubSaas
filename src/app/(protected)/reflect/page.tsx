@@ -1,4 +1,5 @@
 'use client'
+
 import { api } from '@/trpc/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +12,17 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { toast } from 'sonner'
 import { Trash2, RotateCcw, Loader2, Archive } from 'lucide-react'
 
@@ -55,7 +67,6 @@ const ArchivedProjectsList = () => {
         }
     })
 
-    // Loading State
     if (isLoading) {
         return (
             <div className="flex flex-col gap-6 p-4">
@@ -70,7 +81,6 @@ const ArchivedProjectsList = () => {
 
     return (
         <div className="flex flex-col gap-8">
-            {/* 1. Header Section */}
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold tracking-tight text-foreground">
                     Archived Projects
@@ -81,7 +91,6 @@ const ArchivedProjectsList = () => {
                 <div className="h-[1px] w-full bg-border mt-2" />
             </div>
 
-            {/* 2. Empty State */}
             {!projects?.length ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-20 rounded-lg border border-dashed bg-muted/10">
                     <div className="p-4 rounded-full bg-muted/30">
@@ -95,7 +104,6 @@ const ArchivedProjectsList = () => {
                     </div>
                 </div>
             ) : (
-                /* 3. Data Table */
                 <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
                     <Table>
                         <TableHeader className="bg-muted/40">
@@ -130,6 +138,8 @@ const ArchivedProjectsList = () => {
                                     </TableCell>
                                     <TableCell className="text-right pr-6">
                                         <div className="flex justify-end gap-3 opacity-80 group-hover:opacity-100 transition-opacity">
+                                            
+                                            {/* Restore Button (Immediate Action) */}
                                             <Button
                                                 size="sm"
                                                 variant="outline"
@@ -141,20 +151,40 @@ const ArchivedProjectsList = () => {
                                                 <span className="hidden sm:inline">Restore</span>
                                             </Button>
 
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                className="h-8 gap-1.5"
-                                                disabled={restore.isPending || deleteProject.isPending || project.status === 'RESTORING'}
-                                                onClick={() => {
-                                                    if (window.confirm("Are you sure? This action is permanent and cannot be undone.")) {
-                                                        deleteProject.mutate({ projectId: project.id })
-                                                    }
-                                                }}
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                                <span className="hidden sm:inline">Delete</span>
-                                            </Button>
+                                            {/* Delete Button (Protected by AlertDialog) */}
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        className="h-8 gap-1.5"
+                                                        disabled={restore.isPending || deleteProject.isPending || project.status === 'RESTORING'}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                        <span className="hidden sm:inline">Delete</span>
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action cannot be undone. This will permanently delete 
+                                                            <span className="font-semibold text-foreground mx-1">{project.name}</span>
+                                                            and remove all associated data (commits, questions, embeddings) from our servers.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction 
+                                                            onClick={() => deleteProject.mutate({ projectId: project.id })}
+                                                            className="bg-red-600 hover:bg-red-700 text-white"
+                                                        >
+                                                            Delete Permanently
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+
                                         </div>
                                     </TableCell>
                                 </TableRow>

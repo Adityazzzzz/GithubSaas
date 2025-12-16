@@ -134,6 +134,3 @@ async function filterUnprocessedCommits(projectId:string,commitHashes:Response[]
     );
     return unprocessedCommits;
 }
-
-const project = await db.project.findFirst();
-await pollCommits(project!.id);

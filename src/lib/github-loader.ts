@@ -100,7 +100,7 @@ const generateEmbeddings = async (docs: Document[]) => {
         return{
             summary,
             embedding,
-            sourceCode:JSON.parse(JSON.stringify(doc.pageContent)),
+            sourceCode: doc.pageContent,
             fileName:doc.metadata.source,
         }
     }))

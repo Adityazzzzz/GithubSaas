@@ -4,24 +4,27 @@ import { pollCommits } from "@/lib/github";
 import { indexGithubRepo } from "@/lib/github-loader";
 
 export const projectRouter = createTRPCRouter({
+    // 1. Create Project
     createProject: protectedProcedure.input(
         z.object({
-            name:z.string(),
-            githubUrl:z.string(),
-            githubToken:z.string().optional(),
+            name: z.string(),
+            githubUrl: z.string(),
+            githubToken: z.string().optional(),
         })
-    ).mutation(async({ctx,input})=>{
+    ).mutation(async ({ ctx, input }) => {
         const project = await ctx.db.project.create({
-            data:{
-                githubUrl:input.githubUrl,
-                name:input.name,
-                userToProjects:{
-                    create:{
-                        userId:ctx.user.userId!,
+            data: {
+                githubUrl: input.githubUrl,
+                name: input.name,
+                userToProjects: {
+                    create: {
+                        userId: ctx.user.userId!,
                     }
                 }
             }
-        })
+        });
+        
+        // Background tasks (Non-blocking)
         indexGithubRepo(project.id, input.githubUrl, input.githubToken)
             .then(() => console.log("Creation: Indexing completed"))
             .catch((e) => console.error("Creation: Indexing failed", e));
@@ -29,165 +32,163 @@ export const projectRouter = createTRPCRouter({
         pollCommits(project.id)
             .then(() => console.log("Creation: Polling commits completed"))
             .catch((e) => console.error("Creation: Polling commits failed", e));
-        return project
+        
+        return project;
     }),
-    getProjects: protectedProcedure.query(async({ctx})=>{
+
+    // 2. Get Projects (Active only)
+    getProjects: protectedProcedure.query(async ({ ctx }) => {
         return await ctx.db.project.findMany({
-            where:{
-                userToProjects:{
-                    some:{
-                        userId:ctx.user.userId!
-                    }
+            where: {
+                userToProjects: {
+                    some: { userId: ctx.user.userId! }
                 },
-                deletedAt:null
+                deletedAt: null // Only active projects
             }
-        })
+        });
     }),
-    getCommits: protectedProcedure
-  .input(z.object({ projectId: z.string() }))
-  .query(async ({ ctx, input }) => {
-    try {
-      return await ctx.db.commit.findMany({
-        where: { projectId: input.projectId },
-        orderBy: { createdAt: "desc" },
-      })
-    } catch (e) {
-      console.error("Commit fetch failed", e)
-      return [] // UI survives
-    }
-  }),
+
+    // 3. Get Commits (Safe Version)
+    getCommits: protectedProcedure.input(z.object({ 
+        projectId: z.string() 
+    })).query(async ({ ctx, input }) => {
+        return await ctx.db.commit.findMany({ 
+            where: { projectId: input.projectId },
+            orderBy: { commitDate: 'desc' } 
+        });
+    }),
+
+    // 4. Save Answer
     saveAnswer: protectedProcedure.input(z.object({
         projectId: z.string(),
         question: z.string(),
-        answer:z.string(),
+        answer: z.string(),
         filesReferences: z.any()
     })).mutation(async ({ ctx, input }) => {
         return await ctx.db.question.create({
             data: {
-                answer: input.answer, 
+                answer: input.answer,
                 filesReferences: input.filesReferences ?? null,
                 projectId: input.projectId,
                 question: input.question,
                 userId: ctx.user.userId!
             }
-        })
+        });
     }),
+
+    // 5. Get Questions
     getQuestions: protectedProcedure.input(z.object({ projectId: z.string() })).query(async ({ ctx, input }) => {
         return await ctx.db.question.findMany({
-            where: {
-                projectId: input.projectId
-            },
-            include: {
-                user: true
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        })
-    }),
-    uploadMeeting: protectedProcedure.input(z.object({
-      projectId: z.string(),
-      meetingUrl: z.string(),
-      name: z.string(),
-    })).mutation(async ({ ctx, input }) => {
-        const meeting = await ctx.db.meeting.create({
-        data: {
-            meetingUrl: input.meetingUrl,
-            projectId: input.projectId,
-            name: input.name,
-            status: "PROCESSING",
-        },
+            where: { projectId: input.projectId },
+            include: { user: true },
+            orderBy: { createdAt: 'desc' }
         });
-        return meeting;
     }),
+
+    // 6. Upload Meeting
+    uploadMeeting: protectedProcedure.input(z.object({
+        projectId: z.string(),
+        meetingUrl: z.string(),
+        name: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+        return await ctx.db.meeting.create({
+            data: {
+                meetingUrl: input.meetingUrl,
+                projectId: input.projectId,
+                name: input.name,
+                status: "PROCESSING",
+            },
+        });
+
+    }),
+
+    // 7. Get Meetings
     getMeetings: protectedProcedure.input(z.object({
         projectId: z.string(),
     })).query(async ({ ctx, input }) => {
         return await ctx.db.meeting.findMany({
-            where: {
-                projectId: input.projectId,
-            },
-            select: {
-                id: true,
-                name: true,     
-                meetingUrl: true,
-                status: true,
-                createdAt: true,
-                issues:true,
-            },
+            where: { projectId: input.projectId },
+            include: { issues: true },
         });
     }),
+
+    // 8. Delete Meeting (Safe because of Cascade)
     deleteMeeting: protectedProcedure.input(z.object({
         meetingId: z.string(),
     })).mutation(async ({ ctx, input }) => {
         return await ctx.db.meeting.delete({
-            where: {
-                id:input.meetingId
-            },
+            where: { id: input.meetingId },
         });
     }),
-    getMeetingById: protectedProcedure.input(z.object({ 
-        meetingId: z.string() 
+
+    // 9. Get Single Meeting
+    getMeetingById: protectedProcedure.input(z.object({
+        meetingId: z.string()
     })).query(async ({ ctx, input }) => {
         return await ctx.db.meeting.findUnique({
             where: { id: input.meetingId },
             include: { issues: true },
         });
     }),
+
+    // 10. Archive Project (Soft Delete)
     archiveProject: protectedProcedure.input(z.object({ projectId: z.string() })).mutation(async ({ ctx, input }) => {
         return await ctx.db.project.update({
             where: { id: input.projectId },
-            data: { deletedAt: new Date() },
+            data: { 
+                deletedAt: new Date(),
+                status: "ARCHIVED" 
+            },
         });
     }),
-    restoreProject: protectedProcedure
-  .input(z.object({ projectId: z.string() }))
-  .mutation(async ({ ctx, input }) => {
 
-    const project = await ctx.db.project.findUnique({
-      where: { id: input.projectId },
-    })
+    // 11. Restore Project
+    restoreProject: protectedProcedure.input(z.object({ projectId: z.string() })).mutation(async ({ ctx, input }) => {
+        const project = await ctx.db.project.findUnique({
+            where: { id: input.projectId },
+        })
+        if (!project) throw new Error("Project not found")
 
-    if (!project) {
-      throw new Error("Project not found")
-    }
+        await ctx.db.project.update({
+            where: { id: input.projectId },
+            data: { 
+                deletedAt: null,
+                status: "ACTIVE" 
+            }
+        })
+        pollCommits(input.projectId).catch(console.error)
+        indexGithubRepo(input.projectId, project.githubUrl).catch(console.error)
 
-    // 1️⃣ Restore DB state
-    await ctx.db.project.update({
-      where: { id: input.projectId },
-      data: { deletedAt: null },
-    })
+        return { restored: true }
+    }),
 
-    // 2️⃣ Re-sync GitHub safely (non-blocking)
-    pollCommits(input.projectId)
-      .catch(e => console.error("Restore: commit sync failed", e))
+    // 12. PERMANENT DELETE (Hard Delete)
+    // 👇 This was missing in your code!
+    deleteProject: protectedProcedure.input(z.object({ projectId: z.string() })).mutation(async ({ ctx, input }) => {
+        return await ctx.db.project.delete({
+            where: { id: input.projectId },
+        });
+    }),
 
-    // 3️⃣ Re-index embeddings (non-blocking)
-    indexGithubRepo(
-      input.projectId,
-      project.githubUrl,
-      undefined
-    ).catch(e => console.error("Restore: reindex failed", e))
-
-    return { restored: true }
-  })
-,
+    // 13. Get Archived Projects (Fixed Security)
     getArchivedProjects: protectedProcedure.query(async ({ ctx }) => {
         return await ctx.db.project.findMany({
             where: {
-                deletedAt: {
-                    not: null,
-                },
+                deletedAt: { not: null },
+                // 👇 Added security: Only fetch THIS user's projects
+                userToProjects: { 
+                    some: { userId: ctx.user.userId! } 
+                }
             },
-            orderBy: {
-                deletedAt: 'desc',
-            },
+            orderBy: { deletedAt: 'desc' },
         });
     }),
+
+    // 14. Get Team Members
     getTeamMembers: protectedProcedure.input(z.object({ projectId: z.string() })).query(async ({ ctx, input }) => {
         return await ctx.db.userToProject.findMany({
             where: { projectId: input.projectId },
             include: { user: true },
         });
     }),
-})
+});

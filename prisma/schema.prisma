@@ -30,12 +30,21 @@ model Project {
   name                 String
   githubUrl            String
   deletedAt            DateTime?
+
   commits              Commit[]
   sourceCodeEmbeddings SourceCodeEmbedding[]
   userToProjects       UserToProject[]
 
   savedQuestions       Question[]
   meetings             Meeting[]
+
+  status ProjectStatus @default(ACTIVE)
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  RESTORING
 }
 
 model UserToProject {
@@ -44,33 +53,34 @@ model UserToProject {
   updatedAt DateTime @updatedAt
   userId    String
   projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, projectId])
 }
 
 model SourceCodeEmbedding {
-  id               String                 @id @default(cuid())
+  id               String    @id @default(cuid())
   summaryEmbedding Unsupported("vector")?
   sourceCode       String
   fileName         String
   summary          String
   projectId        String
-  project          Project                @relation(fields: [projectId], references: [id])
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, fileName])
 }
 
 model Meeting{
-  id              String    @id @default(cuid())
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id              String        @id @default(cuid())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   name            String
-
   meetingUrl      String
 
   projectId       String
-  project         Project @relation(fields:[projectId], references:[id])
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   status          MeetingStatus @default(PROCESSING)
   issues          Issue[]
@@ -107,7 +117,7 @@ model Question {
   filesReferences Json?
 
   projectId       String
-  project         Project @relation(fields:[projectId], references:[id])
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   userId          String
   user            User    @relation(fields:[userId], references:[id])
@@ -124,5 +134,7 @@ model Commit {
   commitAuthorAvatar String
   commitDate         DateTime
   summary            String
-  project            Project  @relation(fields: [projectId], references: [id])
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, commitHash])
 }

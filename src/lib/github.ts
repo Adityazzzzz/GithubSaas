@@ -38,34 +38,59 @@ export const getCommitHashes = async (githubUrl:string):Promise<Response[]>=>{
     }))
 }
 
-export const pollCommits = async(projectId:string)=>{
-    const {project,githubUrl} = await fetchProjectGithubUrl(projectId)
-    const commitHashes = await getCommitHashes(githubUrl)
-    const unprocessedCommits = await filterUnprocessedCommits(projectId,commitHashes)
-    const summaryResponses = await Promise.allSettled(unprocessedCommits.map(commit => {
-        return summarizeCommit(githubUrl, commit.commitHash)
-    }))
-    const summaries = summaryResponses.map((response)=>{
-        if(response.status === 'fulfilled'){
-            return response.value as string
-        }
-        return ""
+export const pollCommits = async (projectId: string) => {
+    const project = await db.project.findUnique({
+        where: { id: projectId },
+        select: { deletedAt: true, githubUrl: true },
     })
-    const commits = await db.commit.createMany({
-        data:summaries.map((summary,index)=>{
-            console.log(`processing commit:${index}`)
-            return{
-                projectId:projectId,
-                commitHash: unprocessedCommits[index]!.commitHash,
-                commitMessage: unprocessedCommits[index]!.commitMessage ,
-                commitAuthorName: unprocessedCommits[index]!.commitAuthorName ,
-                commitAuthorAvatar: unprocessedCommits[index]!.commitAuthorAvatar ,
-                commitDate: unprocessedCommits[index]!.commitDate,
-                summary
+    if (!project || project.deletedAt) {
+        return
+    }
+    try {
+        const commitHashes = await getCommitHashes(project.githubUrl)
+        
+        if (!commitHashes.length) return
+
+        const unprocessedCommits = await filterUnprocessedCommits(
+            projectId,
+            commitHashes
+        )
+        if (!unprocessedCommits.length) return
+
+        const summaryResponses = await Promise.allSettled(
+            unprocessedCommits.map(commit =>
+                summarizeCommit(project.githubUrl, commit.commitHash)
+            )
+        )
+        
+        const commitData = summaryResponses.map((res, index) => {
+            if (res.status !== "fulfilled") return null
+            const commit = unprocessedCommits[index]
+            if (!commit) return null
+            
+            return {
+                projectId,
+                commitHash: commit.commitHash,
+                commitMessage: commit.commitMessage,
+                commitAuthorName: commit.commitAuthorName,
+                commitAuthorAvatar: commit.commitAuthorAvatar,
+                commitDate: commit.commitDate,
+                summary: res.value,
             }
+        }).filter((item): item is NonNullable<typeof item> => item !== null)
+
+        if (!commitData.length) return
+        
+        await db.commit.createMany({
+            data: commitData,
+            skipDuplicates: true, 
         })
-    })
-    return commits
+
+        console.log(`pollCommits: inserted ${commitData.length} commits`)
+    } 
+    catch (error) {
+        console.error(`pollCommits failed for project ${projectId}:`, error)
+    }
 }
 
 async function summarizeCommit(githubUrl:string,commitHash:string){

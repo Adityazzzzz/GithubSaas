@@ -1,22 +1,18 @@
 'use client'
 import { Button } from "@/components/ui/button"
-import { GithubGlobe } from "@/components/github-globe"
-import { Plus, Cpu, Terminal, GitCommit, Database, HardDrive, Share2 } from "lucide-react"
+import { GithubGlobe } from "@/components/github-globe" // Ensure this path is correct for your project
+import { Plus, Cpu, Terminal, GitCommit, Database, HardDrive, Share2, User } from "lucide-react"
 import { motion } from "framer-motion"
+import Link from "next/link"
 
 export const NoProjectPlaceholder = () => {
     return (
-        // 1. Updated Container Colors for Light/Dark Mode
         <div className="relative h-[calc(100vh-6rem)] w-full overflow-hidden bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl flex items-center justify-center">
             
-            {/* 2. Grid Background (Subtle in light, distinct in dark) */}
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 dark:opacity-20 z-0"></div>
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none z-0"></div>
 
-            {/* ================= LEFT SIDE UI ================= */}
-            <div className="absolute left-10 top-1/2 -translate-y-1/2 hidden xl:flex flex-col gap-6 z-10 w-72">
-                
-                {/* Card 1: System Status - Adaptive Colors */}
+             <div className="absolute left-10 top-1/2 -translate-y-1/2 hidden xl:flex flex-col gap-6 z-10 w-72">
                 <motion.div 
                     initial={{ opacity: 0, x: -50 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -36,13 +32,9 @@ export const NoProjectPlaceholder = () => {
                             <span className="text-neutral-500">Vector Store</span>
                             <span className="text-yellow-600 dark:text-yellow-500 font-mono">WAITING</span>
                         </div>
-                        <div className="h-1.5 w-full bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden mt-2">
-                            <div className="h-full bg-blue-600 w-1/3 animate-pulse"></div>
-                        </div>
                     </div>
                 </motion.div>
 
-                {/* Card 2: Storage Metrics */}
                 <motion.div 
                     initial={{ opacity: 0, x: -50 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -54,7 +46,7 @@ export const NoProjectPlaceholder = () => {
                         <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-400">STORAGE HEURISTICS</span>
                     </div>
                     <div className="space-y-2">
-                        <div className="flex items-center gap-3 text-xs text-neutral-500">
+                         <div className="flex items-center gap-3 text-xs text-neutral-500">
                             <HardDrive className="h-3 w-3" />
                             <div className="flex-1 bg-neutral-200 dark:bg-neutral-800 h-1 rounded-full">
                                 <div className="bg-purple-500 h-full w-[0%]"></div>
@@ -65,12 +57,8 @@ export const NoProjectPlaceholder = () => {
                 </motion.div>
             </div>
 
-
-            {/* ================= RIGHT SIDE UI ================= */}
             <div className="absolute right-10 top-1/2 -translate-y-1/2 hidden xl:flex flex-col gap-6 z-10 w-72">
-                
-                {/* Card 3: Terminal */}
-                <motion.div 
+                 <motion.div 
                     initial={{ opacity: 0, x: 50 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.8, delay: 0.6 }}
@@ -83,11 +71,9 @@ export const NoProjectPlaceholder = () => {
                     <div className="space-y-2 text-neutral-500 dark:text-neutral-500">
                         <p>&gt; initializing_git_brain...</p>
                         <p>&gt; loading_modules... <span className="text-green-600 dark:text-green-500">OK</span></p>
-                        <p className="animate-pulse">...</p>
                     </div>
                 </motion.div>
 
-                {/* Card 4: Activity Stream */}
                 <motion.div 
                     initial={{ opacity: 0, x: 50 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -99,7 +85,7 @@ export const NoProjectPlaceholder = () => {
                         <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-400">ACTIVITY STREAM</span>
                     </div>
                     <div className="relative pl-3 border-l border-neutral-200 dark:border-neutral-800 space-y-3">
-                        <div className="relative">
+                         <div className="relative">
                             <div className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-neutral-300 dark:bg-neutral-700"></div>
                             <div className="text-xs text-neutral-500">Awaiting repository connection...</div>
                         </div>
@@ -107,8 +93,6 @@ export const NoProjectPlaceholder = () => {
                 </motion.div>
             </div>
 
-
-            {/* ================= CENTER HERO ================= */}
             <div className="relative z-10 flex flex-col items-center justify-center h-full w-full pointer-events-none pb-20">
                 <h2 className="text-5xl md:text-7xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-gray-900 to-gray-500 dark:from-white dark:to-neutral-600 text-center">
                     GitBrain
@@ -116,7 +100,6 @@ export const NoProjectPlaceholder = () => {
                 <p className="text-neutral-500 dark:text-neutral-400 text-xl max-w-lg mx-auto mt-4 font-medium text-center">
                     Ignite your repository's neural network.
                 </p>
-                
                 <div className="mt-8 pointer-events-auto">
                     <Button 
                         size="lg"
@@ -129,13 +112,28 @@ export const NoProjectPlaceholder = () => {
                 </div>
             </div>
 
-            {/* 3. INCREASED GLOBE SIZE: max-w-[800px] */}
             <div className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-full max-w-[800px] aspect-square z-0 opacity-100">
                 <GithubGlobe />
             </div>
-
-            {/* Atmosphere Glow (Dark for dark mode, subtle gray/blue for light mode) */}
+            
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-blue-500/10 blur-[100px] pointer-events-none rounded-full"></div>
+
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, delay: 1 }}
+                className="absolute bottom-6 right-6 z-20"
+            >
+                <Link href="https://github.com/Adityazzzzz" target="_blank" rel="noreferrer">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/40 dark:bg-black/40 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-full shadow-lg group hover:scale-105 transition-transform cursor-default">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></span>
+                    
+                    <span className="text-[10px] font-mono font-medium text-neutral-600 dark:text-neutral-400">
+                        architected by <span className="text-neutral-900 dark:text-white font-bold group-hover:text-blue-500 transition-colors">Adityazzzz</span>
+                    </span>
+                </div>
+                </Link>
+            </motion.div>
 
         </div>
     )

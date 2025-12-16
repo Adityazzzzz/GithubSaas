@@ -1,6 +1,6 @@
 'use client'
 import { Button } from "@/components/ui/button"
-import { GithubGlobe } from "@/components/ui/github-globe"
+import { GithubGlobe } from "@/components/github-globe"
 import { Plus } from "lucide-react"
 
 export const NoProjectPlaceholder = () => {

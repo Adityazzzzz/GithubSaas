@@ -11,7 +11,6 @@ import ArchiveButton from './archieve-button'
 import InviteButton from './invite-button'
 import TeamMembers from './team-members'
 import { NoProjectPlaceholder } from '@/components/no-project-placeholder'
-import CommitGraph from '@/components/flow/commit-graph'
 
 const DashboardPage = () => {
     const {project} = useProject()
@@ -57,6 +56,7 @@ const DashboardPage = () => {
             <div className="mt-8"></div>
             <CommitLog/>
         </div>
+        
     </>
 }
 

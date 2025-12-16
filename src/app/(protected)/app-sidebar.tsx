@@ -1,4 +1,5 @@
 'use client'
+import { GitBrainLogo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
@@ -52,7 +53,11 @@ export function AppSidebar(){
     return (
         <Sidebar collapsible="icon" variant="floating">
             <SidebarHeader>
-                Logo
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <GitBrainLogo />
+                    </SidebarMenuItem>
+                </SidebarMenu>
             </SidebarHeader>
 
             <SidebarContent>

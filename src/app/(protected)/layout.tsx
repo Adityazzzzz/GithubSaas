@@ -5,6 +5,8 @@ import { AppSidebar } from './app-sidebar'
 import { useEffect, useState } from "react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { GlobalSearch } from '@/components/global-search'
+import { usePathname } from 'next/navigation'
+import GlobalHeaderStats from '@/components/github-star'
 
 type Props = {
     children: React.ReactNode
@@ -12,6 +14,8 @@ type Props = {
 
 const SidebarLayout = ({ children }: Props) => {
     const [mounted, setMounted] = useState(false)
+    const pathname = usePathname()
+    const projectId = pathname.split('/')[2]
 
     useEffect(() => {
         setMounted(true)
@@ -26,6 +30,7 @@ const SidebarLayout = ({ children }: Props) => {
                     <SidebarTrigger /> 
                     <GlobalSearch/>
                     <div className='ml-auto'></div>
+                    <GlobalHeaderStats />
                     <ThemeToggle />
                     <UserButton />
                 </div>

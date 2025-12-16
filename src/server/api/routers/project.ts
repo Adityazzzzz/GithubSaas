@@ -1,6 +1,6 @@
 import z from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { pollCommits } from "@/lib/github";
+import { pollCommits,octokit } from "@/lib/github";
 import { indexGithubRepo } from "@/lib/github-loader";
 
 export const projectRouter = createTRPCRouter({
@@ -190,5 +190,25 @@ export const projectRouter = createTRPCRouter({
             where: { projectId: input.projectId },
             include: { user: true },
         });
+    }),
+
+    getMyRepoStats: protectedProcedure.query(async () => {
+      const OWNER = "Adityazzzzz";   
+      const REPO = "GithubSaas"; 
+
+        try {
+            const { data } = await octokit.rest.repos.get({
+                owner: OWNER,
+                repo: REPO,
+            });
+            return {
+                stars: data.stargazers_count,
+                forks: data.forks_count,
+                url: data.html_url
+            };
+        } catch (error) {
+            console.error("Failed to fetch global stats:", error);
+            return null;
+        }
     }),
 });

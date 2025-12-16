@@ -83,7 +83,7 @@ export const NoProjectPlaceholder = () => {
                     <div className="space-y-2 text-neutral-500 dark:text-neutral-500">
                         <p>&gt; initializing_git_brain...</p>
                         <p>&gt; loading_modules... <span className="text-green-600 dark:text-green-500">OK</span></p>
-                        <p className="animate-pulse">_</p>
+                        <p className="animate-pulse">...</p>
                     </div>
                 </motion.div>
 

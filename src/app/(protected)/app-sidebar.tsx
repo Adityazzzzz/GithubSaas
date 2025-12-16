@@ -67,7 +67,7 @@ export function AppSidebar(){
                                 return (
                                     <SidebarMenuItem key={i.title}>
                                         <SidebarMenuButton asChild>
-                                            <Link href={i.url} className={cn({'!bg-primary !text-white':pathname === i.url},'list-none')}>
+                                            <Link href={i.url} className={cn({'bg-primary! text-white!':pathname === i.url},'list-none')}>
                                                 <i.icon/>
                                                 <span>{i.title}</span>
                                             </Link>

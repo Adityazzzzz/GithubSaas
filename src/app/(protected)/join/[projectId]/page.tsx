@@ -34,9 +34,10 @@ const JoinHandler = async (props: Props) => {
     const project = await db.project.findUnique({
         where:{
             id:projectId,
-        }
+        },
+        select: { deletedAt: true },
     })
-    if(!project) return redirect('/dashboard')
+    if(!project || project.deletedAt ) return redirect('/dashboard')
     try{
         await db.userToProject.create({
             data:{

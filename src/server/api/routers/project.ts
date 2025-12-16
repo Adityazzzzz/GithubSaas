@@ -43,12 +43,19 @@ export const projectRouter = createTRPCRouter({
             }
         })
     }),
-    getCommits: protectedProcedure.input(z.object({
-        projectId:z.string()
-    })).query(async({ctx,input})=>{
-        pollCommits(input.projectId).then().catch(console.error)
-        return await ctx.db.commit.findMany({where:{projectId:input.projectId}})
-    }),
+    getCommits: protectedProcedure
+  .input(z.object({ projectId: z.string() }))
+  .query(async ({ ctx, input }) => {
+    try {
+      return await ctx.db.commit.findMany({
+        where: { projectId: input.projectId },
+        orderBy: { createdAt: "desc" },
+      })
+    } catch (e) {
+      console.error("Commit fetch failed", e)
+      return [] // UI survives
+    }
+  }),
     saveAnswer: protectedProcedure.input(z.object({
         projectId: z.string(),
         question: z.string(),
@@ -133,12 +140,38 @@ export const projectRouter = createTRPCRouter({
             data: { deletedAt: new Date() },
         });
     }),
-    restoreProject: protectedProcedure.input(z.object({ projectId: z.string() })).mutation(async ({ ctx, input }) => {
-        return await ctx.db.project.update({
-            where: { id: input.projectId },
-            data: { deletedAt: null },
-        });
-    }),
+    restoreProject: protectedProcedure
+  .input(z.object({ projectId: z.string() }))
+  .mutation(async ({ ctx, input }) => {
+
+    const project = await ctx.db.project.findUnique({
+      where: { id: input.projectId },
+    })
+
+    if (!project) {
+      throw new Error("Project not found")
+    }
+
+    // 1️⃣ Restore DB state
+    await ctx.db.project.update({
+      where: { id: input.projectId },
+      data: { deletedAt: null },
+    })
+
+    // 2️⃣ Re-sync GitHub safely (non-blocking)
+    pollCommits(input.projectId)
+      .catch(e => console.error("Restore: commit sync failed", e))
+
+    // 3️⃣ Re-index embeddings (non-blocking)
+    indexGithubRepo(
+      input.projectId,
+      project.githubUrl,
+      undefined
+    ).catch(e => console.error("Restore: reindex failed", e))
+
+    return { restored: true }
+  })
+,
     getArchivedProjects: protectedProcedure.query(async ({ ctx }) => {
         return await ctx.db.project.findMany({
             where: {

@@ -1,9 +1,11 @@
 'use client'
 import { DistortionHero } from "@/components/landing/distortion-hero"
 import { ArchitectureGrid } from "@/components/landing/architecture-grid"
-import { CTAFooter } from "@/components/landing/cta-footer"
+import { CombinedFooter } from "@/components/landing/cta-footer"
 import { GitBrainLogo } from "@/components/logo"
 import Link from "next/link"
+import { HoloDeck } from "@/components/landing/holo-deck"
+import { IsoCircuit } from "@/components/landing/neural-reactor"
 export default function LandingPage() {
   return (
     <div className="bg-neutral-950 min-h-screen selection:bg-white selection:text-black overflow-x-hidden">
@@ -15,7 +17,6 @@ export default function LandingPage() {
          </div>
          <div className="pointer-events-auto flex gap-6 text-xs font-mono">
             <Link href="#features" className="hover:underline">MODULES</Link>
-            <Link href="#workflow" className="hover:underline">WORKFLOW</Link> {/* Added Link */}
             <Link href="/dashboard" className="hover:underline">[ LOGIN ]</Link>
          </div>
       </nav>
@@ -27,8 +28,13 @@ export default function LandingPage() {
       <div id="features">
         <ArchitectureGrid />
       </div>
+
+      {/* 4. "How We Do It" - The Reactor Engine */}
+      <div id="engine" className="relative z-10">
+        <IsoCircuit />
+      </div>
       {/* 6. Giant CTA Footer */}
-      <CTAFooter />
+      <CombinedFooter />
       
     </div>
   )

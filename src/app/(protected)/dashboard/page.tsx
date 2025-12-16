@@ -1,7 +1,7 @@
 "use client"
 import useProject from '@/hooks/use-project'
 import { useUser } from '@clerk/nextjs'
-import { ExternalLink, Github } from 'lucide-react'
+import { ExternalLink, Github, PenBox } from 'lucide-react'
 import Link from 'next/link'
 import React from 'react'
 import CommitLog from './commit-log'
@@ -10,9 +10,13 @@ import MeetingCard from './meeting-card'
 import ArchiveButton from './archieve-button'
 import InviteButton from './invite-button'
 import TeamMembers from './team-members'
+import { NoProjectPlaceholder } from '@/components/no-project-placeholder'
 
 const DashboardPage = () => {
     const {project} = useProject()
+    if (!project) {
+      return <NoProjectPlaceholder />
+    }
     return <>
         <div>
             {project?.name}

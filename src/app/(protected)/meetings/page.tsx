@@ -9,11 +9,23 @@ import { formatDate, formatIssuesCount } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import useRefetch from '@/hooks/use-refetch'
+import { NoProjectPlaceholder } from '@/components/no-project-placeholder'
 
 
 const MeetingsPage = () => {
     const {projectId} = useProject()
-    const {data:meetings,isLoading} = api.project.getMeetings.useQuery({ projectId },{refetchInterval: 4000,})
+    const { data: projects } = api.project.getProjects.useQuery()
+    const isProjectActive = projects?.find(p => p.id === projectId);
+    if (!projectId || (projects && !isProjectActive)) {
+        return <NoProjectPlaceholder />
+    }
+    const { data: meetings, isLoading } = api.project.getMeetings.useQuery(
+        { projectId }, 
+        { 
+            refetchInterval: 4000, 
+            enabled: !!projectId 
+        }
+    )
 
     const deleteMeeting = api.project.deleteMeeting.useMutation()
     const refetch = useRefetch()

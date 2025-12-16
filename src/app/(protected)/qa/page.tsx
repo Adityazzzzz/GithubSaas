@@ -6,10 +6,19 @@ import React from 'react'
 import AskQuestionCard from '../dashboard/ask-question-card'
 import MDEditor from '@uiw/react-md-editor'
 import CodeReferences from '../dashboard/code-reference'
+import { NoProjectPlaceholder } from '@/components/no-project-placeholder'
 
 const QAPage = () => {
     const { projectId } = useProject()
-    const { data: questions } = api.project.getQuestions.useQuery({ projectId })
+    const { data: projects } = api.project.getProjects.useQuery()
+    const isProjectActive = projects?.find(p => p.id === projectId);
+    if (!projectId || (projects && !isProjectActive)) {
+      return <NoProjectPlaceholder />
+    }
+    const { data: questions } = api.project.getQuestions.useQuery(
+      { projectId }, 
+      { enabled: !!projectId }
+    )
 
     const [questionIndex, setQuestionIndex] = React.useState(0)
     const question = questions?.[questionIndex]

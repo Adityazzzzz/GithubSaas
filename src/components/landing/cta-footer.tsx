@@ -11,31 +11,7 @@ export const CombinedFooter = () => {
     return (
         <footer className="w-full bg-neutral-950 text-white relative overflow-hidden border-t border-white/20">
             
-            {/* === SECTION 1: THE GIANT LAUNCH BUTTON (Your CTA) === */}
-            <div className="w-full border-b border-white/10 bg-black relative z-10">
-                <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-                    <p className="font-mono text-xs mb-6 tracking-widest text-neutral-500 uppercase">
-                        // SYSTEM_READY_FOR_DEPLOYMENT
-                    </p>
-                    
-                    <h2 className={`${oswald.className} text-[10vw] md:text-[8vw] leading-[0.8] tracking-tighter uppercase mb-10 text-white select-none`}>
-                        Ignite Repo
-                    </h2>
-
-                    <Link href="/dashboard">
-                        <button className="group relative px-12 py-6 bg-white text-black text-xl font-mono uppercase tracking-widest overflow-hidden hover:scale-105 transition-transform duration-300">
-                            <span className="relative z-10 flex items-center gap-4 font-bold">
-                                Initialize Sequence <ArrowUpRight />
-                            </span>
-                            {/* Hover Fill Effect */}
-                            <div className="absolute inset-0 bg-blue-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out z-0" />
-                        </button>
-                    </Link>
-                </div>
-                
-                {/* Warning Stripes Background */}
-                <div className="absolute top-0 left-0 w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.03)_10px,rgba(255,255,255,0.03)_20px)] pointer-events-none" />
-            </div>
+            
 
 
             {/* === SECTION 2: THE INFO GRID (From your Reference Image) === */}

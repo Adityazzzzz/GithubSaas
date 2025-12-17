@@ -21,6 +21,7 @@ model User {
   credits        Int             @default(150)
   userToProjects UserToProject[]
   questionAsked Question[]
+  razorpayTransaction RazorpayTransaction[]
 }
 
 model Project {
@@ -137,4 +138,17 @@ model Commit {
   project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, commitHash])
+}
+
+model RazorpayTransaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  credits   Int
+  paymentId String   @unique 
+  orderId   String   @unique 
 }

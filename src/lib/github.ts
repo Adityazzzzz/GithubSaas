@@ -17,6 +17,38 @@ type Response={
     commitDate:string;
 }
 
+export const checkCredits = async (githubUrl: string, githubToken?: string) => {
+    const client = githubToken ? new Octokit({ auth: githubToken }) : octokit;
+
+    const parts = githubUrl.split('/');
+    const owner = parts[parts.length - 2];
+    const repo = parts[parts.length - 1];
+
+    if (!owner || !repo) {
+        return 0;
+    }
+
+    try {
+        const { data: repoData } = await client.rest.repos.get({
+            owner,
+            repo,
+        });
+        const defaultBranch = repoData.default_branch;
+        const { data: treeData } = await client.rest.git.getTree({
+            owner,
+            repo,
+            tree_sha: defaultBranch,
+            recursive: 'true',
+        });
+        const fileCount = treeData.tree.filter(item => item.type === 'blob').length;
+        return fileCount;
+    } 
+    catch (error) {
+        console.error("Error fetching file count:", error);
+        return 0;
+    }
+}
+
 export const getCommitHashes = async (githubUrl:string):Promise<Response[]>=>{
     const [owner,repo] = githubUrl.split('/').slice(-2);
     if(!owner || !repo){

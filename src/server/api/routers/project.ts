@@ -1,6 +1,6 @@
 import z from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { pollCommits,octokit } from "@/lib/github";
+import { pollCommits,octokit, checkCredits } from "@/lib/github";
 import { indexGithubRepo } from "@/lib/github-loader";
 
 export const projectRouter = createTRPCRouter({
@@ -12,26 +12,44 @@ export const projectRouter = createTRPCRouter({
             githubToken: z.string().optional(),
         })
     ).mutation(async ({ ctx, input }) => {
-        const project = await ctx.db.project.create({
-            data: {
-                githubUrl: input.githubUrl,
-                name: input.name,
-                userToProjects: {
-                    create: {
-                        userId: ctx.user.userId!,
+        const fileCount = await checkCredits(input.githubUrl, input.githubToken);
+        const project = await ctx.db.$transaction(async (tx) => {
+            
+            const user = await tx.user.findUnique({
+                where: { id: ctx.user.userId! },
+                select: { credits: true }
+            });
+            if (!user || (user.credits || 0) < fileCount) {
+                throw new Error('Insufficient Credits');
+            }
+
+            const newProject = await tx.project.create({
+                data: {
+                    githubUrl: input.githubUrl,
+                    name: input.name,
+                    userToProjects: {
+                        create: {
+                            userId: ctx.user.userId!,
+                        }
                     }
                 }
-            }
-        });
-        
-        // Background tasks (Non-blocking)
-        indexGithubRepo(project.id, input.githubUrl, input.githubToken)
-            .then(() => console.log("Creation: Indexing completed"))
-            .catch((e) => console.error("Creation: Indexing failed", e));
+            });
 
-        pollCommits(project.id)
-            .then(() => console.log("Creation: Polling commits completed"))
-            .catch((e) => console.error("Creation: Polling commits failed", e));
+            await tx.user.update({
+                where: { id: ctx.user.userId! },
+                data: { credits: { decrement: fileCount } }
+            });
+
+            return newProject;
+        });
+
+        try {
+            await indexGithubRepo(project.id, input.githubUrl, input.githubToken);
+            await pollCommits(project.id);
+        } 
+        catch (error) {
+            console.error("Background processing failed:", error);
+        }
         
         return project;
     }),
@@ -192,6 +210,7 @@ export const projectRouter = createTRPCRouter({
         });
     }),
 
+    // 15. Github stars
     getMyRepoStats: protectedProcedure.query(async () => {
       const OWNER = "Adityazzzzz";   
       const REPO = "GithubSaas"; 
@@ -210,5 +229,25 @@ export const projectRouter = createTRPCRouter({
             console.error("Failed to fetch global stats:", error);
             return null;
         }
+    }),
+
+    // 16. subscription
+    getMyCredits: protectedProcedure.query(async ({ ctx }) => {
+        return await ctx.db.user.findUnique({
+            where: { id: ctx.user.userId! },
+            select: { credits: true },
+        })
+    }),
+    //17. Check credits
+    checkCredits: protectedProcedure.input(z.object({
+        githubUrl: z.string(),
+        githubToken: z.string().optional(),
+    })).mutation(async ({ input, ctx }) => {
+        const fileCount = await checkCredits(input.githubUrl, input.githubToken);
+        const user = await ctx.db.user.findUnique({
+            where: { id: ctx.user.userId! },
+            select: { credits: true },
+        });
+        return { fileCount, userCredits: user?.credits || 0 };
     }),
 });

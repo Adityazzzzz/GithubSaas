@@ -1,21 +1,21 @@
 'use client'
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import { createRazorpayOrder, verifyRazorpayPayment } from "@/lib/razorpay"
-import { api } from "@/trpc/react"
+import { api } from "@/trpc/react" // <--- Use tRPC, not direct lib imports
 import { Info, Loader2 } from "lucide-react"
 import React, { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 const BillingPage = () => {
     const { data: user, refetch } = api.project.getMyCredits.useQuery()
+    const createOrder = api.payments.createOrder.useMutation()
+    const verifyPayment = api.payments.verifyPayment.useMutation()
     const [creditsToBuy, setCreditsToBuy] = useState<number[]>([100])
     const creditsToBuyAmount = creditsToBuy[0]!
-    const price = (creditsToBuyAmount*7.99).toFixed(2)
+
+    const price = (creditsToBuyAmount * 7.99).toFixed(2)
     
-    const [loading, setLoading] = useState(false) 
-    const router = useRouter()
+    const [loading, setLoading] = useState(false)
 
     useEffect(() => {
         const script = document.createElement("script")
@@ -25,33 +25,32 @@ const BillingPage = () => {
         return () => {
             document.body.removeChild(script)
         }
-    },[])
-
+    }, [])
     const handlePayment = async () => {
         setLoading(true)
         try {
-            const order = await createRazorpayOrder(creditsToBuyAmount)
-
+            const order = await createOrder.mutateAsync({ credits: creditsToBuyAmount })
             const options = {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: order.amount,
                 currency: order.currency,
                 name: "Dionysus AI",
                 description: `Buy ${creditsToBuyAmount} Credits`,
-                order_id: order.id,
+                order_id: order.orderId,
                 handler: async function (response: any) {
                     try {
-                        await verifyRazorpayPayment({
+                        await verifyPayment.mutateAsync({
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
-                            credits: creditsToBuyAmount
-                        })                        
+                            creditsToBuy: creditsToBuyAmount
+                        })
                         toast.success('Credits added successfully!')
                         refetch() 
                     } 
                     catch (err) {
-                        toast.error('Transaction failed')
+                        console.error(err)
+                        toast.error('Payment verification failed')
                     }
                 },
                 theme: {
@@ -61,8 +60,10 @@ const BillingPage = () => {
             const rzp1 = new (window as any).Razorpay(options)
             rzp1.open()
             
-        } catch (error) {
-            toast.error('Something went wrong during Payment.')
+        } 
+        catch (error) {
+            console.error(error)
+            toast.error('Something went wrong during Payment initialization.')
         } 
         finally {
             setLoading(false)
@@ -101,7 +102,7 @@ const BillingPage = () => {
             />
             <div className="h-4"></div>
 
-            <Button onClick={handlePayment} disabled={loading}>
+            <Button onClick={handlePayment} disabled={loading || createOrder.isPending}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Buy {creditsToBuyAmount} credits for ₹{price}
             </Button>

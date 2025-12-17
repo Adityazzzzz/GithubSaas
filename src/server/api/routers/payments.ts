@@ -9,16 +9,13 @@ const razorpay = new Razorpay({
 });
 
 export const paymentRouter = createTRPCRouter({
+    // 1. Create Order
     createOrder: protectedProcedure
         .input(z.object({ credits: z.number().min(1) }))
         .mutation(async ({ ctx, input }) => {
-            console.log("🟢 [1] createOrder started. Credits:", input.credits);
-            
             const pricePerCreditInPaise = 799; 
             const amount = Math.round(input.credits * pricePerCreditInPaise);
             
-            console.log("🟢 [2] Amount calculated:", amount);
-
             const options = {
                 amount: amount, 
                 currency: "INR",
@@ -30,22 +27,19 @@ export const paymentRouter = createTRPCRouter({
             };
 
             try {
-                console.log("🟢 [3] Sending request to Razorpay...");
                 const order = await razorpay.orders.create(options);
-                console.log("🟢 [4] Order created successfully:", order.id);
-                
                 return { 
                     orderId: order.id, 
                     amount: order.amount,
                     currency: order.currency 
                 };
             } catch (error) {
-                console.error("🔴 [ERROR] Razorpay Failed:", error);
-                // Throwing a clearer error for the frontend
-                throw new Error("Razorpay Order Creation Failed: " + (error as any).message);
+                console.error("Razorpay Error:", error);
+                throw new Error("Razorpay Order Creation Failed");
             }
         }),
 
+    // 2. Verify Payment
     verifyPayment: protectedProcedure
         .input(z.object({
             razorpay_order_id: z.string(),
@@ -56,7 +50,6 @@ export const paymentRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = input;
 
-            // 1. Validate Signature
             const body = razorpay_order_id + "|" + razorpay_payment_id;
             const expectedSignature = crypto
                 .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
@@ -67,16 +60,13 @@ export const paymentRouter = createTRPCRouter({
                 throw new Error("Invalid Payment Signature");
             }
 
-            // ✅ FIX 2: Double-Spending Protection (Transaction)
             await ctx.db.$transaction(async (tx) => {
-                // Check if we already processed this payment
                 const existing = await tx.razorpayTransaction.findUnique({
                     where: { paymentId: razorpay_payment_id }
                 });
 
-                if (existing) return; // Stop if already processed
+                if (existing) return; 
 
-                // Save transaction
                 await tx.razorpayTransaction.create({
                     data: {
                         userId: ctx.user.userId!,
@@ -86,7 +76,6 @@ export const paymentRouter = createTRPCRouter({
                     }
                 });
 
-                // Add credits
                 await tx.user.update({
                     where: { id: ctx.user.userId! },
                     data: {
@@ -97,4 +86,12 @@ export const paymentRouter = createTRPCRouter({
 
             return { success: true };
         }),
+
+    // 3. Get History (THIS WAS MISSING)
+    getCreditsHistory: protectedProcedure.query(async ({ ctx }) => {
+        return await ctx.db.razorpayTransaction.findMany({
+            where: { userId: ctx.user.userId! },
+            orderBy: { createdAt: 'desc' },
+        });
+    }),
 });

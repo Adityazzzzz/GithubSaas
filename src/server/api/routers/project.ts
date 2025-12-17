@@ -249,5 +249,5 @@ export const projectRouter = createTRPCRouter({
             select: { credits: true },
         });
         return { fileCount, userCredits: user?.credits || 0 };
-    }),
+    }),   
 });

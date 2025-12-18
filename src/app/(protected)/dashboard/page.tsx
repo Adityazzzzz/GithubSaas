@@ -8,9 +8,10 @@ import CommitLog from './commit-log'
 import AskQuestionCard from './ask-question-card'
 import MeetingCard from './meeting-card'
 import ArchiveButton from './archieve-button'
-import InviteButton from './invite-button'
 import TeamMembers from './team-members'
 import { NoProjectPlaceholder } from '@/components/no-project-placeholder'
+import dynamic from 'next/dynamic'
+const InviteButton = dynamic(()=>import('./invite-button'),{ssr:false}) 
 
 const DashboardPage = () => {
     const {project} = useProject()

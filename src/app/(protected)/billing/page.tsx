@@ -39,7 +39,7 @@ const BillingPage = () => {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: order.amount,
                 currency: order.currency,
-                name: "Dionysus AI",
+                name: "GitBrain-AI Studio",
                 description: `Buy ${creditsToBuyAmount} Credits`,
                 order_id: order.orderId,
                 handler: async function (response: any) {

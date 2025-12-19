@@ -69,7 +69,7 @@ export const HeroLeftColumn = () => {
                 <span className="text-neutral-400">Your Codebase.</span>
             </motion.h1>
 
-            <motion.p 
+            <motion.div  
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
@@ -78,85 +78,84 @@ export const HeroLeftColumn = () => {
                 Transform your repository into a queryable knowledge graph. 
                 <span className="text-neutral-900 font-semibold"> Zero-config RAG </span> 
                 that understands your project's logic, dependencies, and history.
+                
                 <div className="h-4"></div>
-                
-                
-            </motion.p>
+            </motion.div>
 
             <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="w-full max-w-md flex flex-col gap-4"
-        >
-            <div className="relative group z-20">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Github className="h-5 w-5 text-neutral-400 group-focus-within:text-neutral-900 transition-colors" />
-                </div>
-                <input 
-                    type="text" 
-                    className={`block w-full pl-12 pr-32 py-4 bg-white border ${error ? 'border-red-300 focus:ring-red-200' : 'border-neutral-200 focus:ring-neutral-900'} rounded-xl text-sm font-medium text-neutral-900 placeholder:text-neutral-400 shadow-[0_2px_10px_rgba(0,0,0,0.05)] focus:ring-2 focus:border-transparent outline-none transition-all`}
-                    placeholder="github.com/Adityazzzz/project"
-                    value={repoUrl}
-                    onChange={(e) => setRepoUrl(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleIndex()}
-                />
-                <button 
-                    onClick={handleIndex}
-                    disabled={loading}
-                    className="absolute right-2 top-2 bottom-2 bg-neutral-900 hover:bg-black text-white px-5 rounded-lg text-sm font-bold transition-all hover:scale-105 active:scale-95 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                >
-                    {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Index"}
-                    {!loading && <ArrowRight className="w-3 h-3" />}
-                </button>
-            </div>
-
-            {/* ERROR MESSAGE */}
-            {error && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-xs text-red-500 font-medium pl-2">
-                    {error}
-                </motion.div>
-            )}
-
-            {/* --- THE REPO PREVIEW CARD (MAGICAL PART) --- */}
-            <AnimatePresence>
-                {repoData && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="w-full bg-white border border-neutral-200 rounded-xl p-4 shadow-lg flex items-center justify-between"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="w-full max-w-md flex flex-col gap-4"
+            >
+                <div className="relative group z-20">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Github className="h-5 w-5 text-neutral-400 group-focus-within:text-neutral-900 transition-colors" />
+                    </div>
+                    <input 
+                        type="text" 
+                        className={`block w-full pl-12 pr-32 py-4 bg-white border ${error ? 'border-red-300 focus:ring-red-200' : 'border-neutral-200 focus:ring-neutral-900'} rounded-xl text-sm font-medium text-neutral-900 placeholder:text-neutral-400 shadow-[0_2px_10px_rgba(0,0,0,0.05)] focus:ring-2 focus:border-transparent outline-none transition-all`}
+                        placeholder="github.com/Adityazzzz/project"
+                        value={repoUrl}
+                        onChange={(e) => setRepoUrl(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleIndex()}
+                    />
+                    <button 
+                        onClick={handleIndex}
+                        disabled={loading}
+                        className="absolute right-2 top-2 bottom-2 bg-neutral-900 hover:bg-black text-white px-5 rounded-lg text-sm font-bold transition-all hover:scale-105 active:scale-95 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                        <div className="flex items-center gap-3">
-                            <img src={repoData.owner.avatar_url} alt="Avatar" className="w-10 h-10 rounded-lg border border-neutral-100" />
-                            <div className="text-left">
-                                <div className="text-sm font-bold text-neutral-900 leading-tight">{repoData.name}</div>
-                                <div className="flex items-center gap-3 text-[10px] text-neutral-500 mt-1">
-                                    <span className="flex items-center gap-1"><Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> {repoData.stargazers_count}</span>
-                                    {repoData.language && <span className="flex items-center gap-1"><Terminal className="w-3 h-3" /> {repoData.language}</span>}
-                                </div>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={handleContinue}
-                            className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm animate-pulse"
-                        >
-                            Analyze Now
-                        </button>
+                        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Index"}
+                        {!loading && <ArrowRight className="w-3 h-3" />}
+                    </button>
+                </div>
+
+                {/* ERROR MESSAGE */}
+                {error && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-xs text-red-500 font-medium pl-2">
+                        {error}
                     </motion.div>
                 )}
-            </AnimatePresence>
-            {!repoData && (
-                <div className="flex items-center gap-4 text-[10px] text-neutral-400 font-medium px-2 uppercase tracking-wide">
-                    <span className="flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-green-500" /> Free Tier
-                    </span>
-                    <span className="flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-green-500" /> No CC Required
-                    </span>
-                </div>
-            )}
-        </motion.div>
+
+                {/* --- THE REPO PREVIEW CARD (MAGICAL PART) --- */}
+                <AnimatePresence>
+                    {repoData && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="w-full bg-white border border-neutral-200 rounded-xl p-4 shadow-lg flex items-center justify-between"
+                        >
+                            <div className="flex items-center gap-3">
+                                <img src={repoData.owner.avatar_url} alt="Avatar" className="w-10 h-10 rounded-lg border border-neutral-100" />
+                                <div className="text-left">
+                                    <div className="text-sm font-bold text-neutral-900 leading-tight">{repoData.name}</div>
+                                    <div className="flex items-center gap-3 text-[10px] text-neutral-500 mt-1">
+                                        <span className="flex items-center gap-1"><Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> {repoData.stargazers_count}</span>
+                                        {repoData.language && <span className="flex items-center gap-1"><Terminal className="w-3 h-3" /> {repoData.language}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={handleContinue}
+                                className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm animate-pulse"
+                            >
+                                Analyze Now
+                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                {!repoData && (
+                    <div className="flex items-center gap-4 text-[10px] text-neutral-400 font-medium px-2 uppercase tracking-wide">
+                        <span className="flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-green-500" /> Free Tier
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-green-500" /> No CC Required
+                        </span>
+                    </div>
+                )}
+            </motion.div>
 
             <motion.div 
                 initial={{ opacity: 0 }}

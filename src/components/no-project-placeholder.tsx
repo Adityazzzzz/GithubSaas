@@ -4,6 +4,7 @@ import { GithubGlobe } from "@/components/github-globe" // Ensure this path is c
 import { Plus, Cpu, Terminal, GitCommit, Database, HardDrive, Share2, User } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
 
 export const NoProjectPlaceholder = () => {
     return (
@@ -101,14 +102,18 @@ export const NoProjectPlaceholder = () => {
                     Ignite your repository's neural network.
                 </p>
                 <div className="mt-8 pointer-events-auto">
-                    <Button 
-                        size="lg"
-                        className="bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-bold px-8 h-12 text-base rounded-full shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all hover:scale-105 active:scale-95"
-                        onClick={() => document.getElementById('create-project-trigger')?.click()}
-                    >
-                        <Plus className="mr-2 h-5 w-5" />
-                        Create Project
-                    </Button>
+                    <Link href='/create'>
+                        <Button 
+                            size='sm' 
+                            variant={'outline'} 
+                            className={cn("w-fit border-sidebar-border bg-sidebar-primary text-sidebar-primary-foreground mb-2 flex items-center",
+                            !open ? "h-9 w-9 p-0 justify-center ml-1" : "gap-2" 
+                            )}
+                        >
+                            <Plus className="size-4" />
+                            <span>Create Project</span>
+                        </Button>
+                    </Link>
                 </div>
             </div>
 

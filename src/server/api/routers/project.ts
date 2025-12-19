@@ -213,7 +213,7 @@ export const projectRouter = createTRPCRouter({
     // 15. Github stars
     getMyRepoStats: protectedProcedure.query(async () => {
       const OWNER = "Adityazzzzz";   
-      const REPO = "GithubSaas"; 
+      const REPO = "GitBtain-AI-Studio"; 
 
         try {
             const { data } = await octokit.rest.repos.get({

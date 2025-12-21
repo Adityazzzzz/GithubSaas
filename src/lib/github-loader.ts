@@ -60,6 +60,7 @@ export const indexGithubRepo = async (projectId: string, githubUrl: string, gith
             embeddings.map(async (result, index) => {
                 if (!result) return
                 try {
+                    console.log('Source Code Embeddings initialized')
                     const existing = await db.sourceCodeEmbedding.findFirst({
                         where: {
                             projectId,
@@ -75,6 +76,7 @@ export const indexGithubRepo = async (projectId: string, githubUrl: string, gith
                             fileName: result.fileName,
                         },
                     })
+                    console.log('Source Code Embeddings created')
                     await db.$executeRaw`
                         UPDATE "SourceCodeEmbedding"
                         SET "summaryEmbedding" = ${result.embedding}::vector

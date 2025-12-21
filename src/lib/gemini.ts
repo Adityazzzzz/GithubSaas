@@ -67,6 +67,7 @@ export async function summariseCode(doc: Document) {
     return response.response.text()
   } 
   catch (error) {
+    console.error(`❌ FAILED to summarize ${doc.metadata.source}:`, error);
     return ""
   }
 }

@@ -96,14 +96,21 @@ export const indexGithubRepo = async (projectId: string, githubUrl: string, gith
 }
 
 const generateEmbeddings = async (docs: Document[]) => {
-    return await Promise.all(docs.map(async doc => {
-        const summary = await summariseCode(doc)
-        const embedding = await generateEmbedding(summary)
-        return{
-            summary,
-            embedding,
-            sourceCode: doc.pageContent,
-            fileName:doc.metadata.source,
+    const results = []
+    for (const doc of docs) {
+        try {
+            console.log(`Processing file: ${doc.metadata.source}`)
+            const summary = await summariseCode(doc)
+            const embedding = await generateEmbedding(summary)
+            results.push({
+                summary,
+                embedding,
+                sourceCode: doc.pageContent,
+                fileName: doc.metadata.source,
+            })
+        } catch (error) {
+            console.error(`Failed to generate embedding for ${doc.metadata.source}`, error)
         }
-    }))
+    }
+    return results
 }

@@ -50,9 +50,10 @@ export const checkCredits = async (githubUrl: string, githubToken?: string) => {
 }
 
 export const getCommitHashes = async (githubUrl:string):Promise<Response[]>=>{
-    const [owner,repo] = githubUrl.split('/').slice(-2);
-    if(!owner || !repo){
-        throw new Error("Invalid github url")
+    const cleanUrl = githubUrl.replace(/\/$/, ""); 
+    const [owner, repo] = cleanUrl.split('/').slice(-2);
+    if (!owner || !repo) {
+        throw new Error("Invalid github url");
     }
 
     const {data} = await octokit.rest.repos.listCommits({
@@ -80,7 +81,6 @@ export const pollCommits = async (projectId: string) => {
     }
     try {
         const commitHashes = await getCommitHashes(project.githubUrl)
-        
         if (!commitHashes.length) return
 
         const unprocessedCommits = await filterUnprocessedCommits(
@@ -125,13 +125,27 @@ export const pollCommits = async (projectId: string) => {
     }
 }
 
-async function summarizeCommit(githubUrl:string,commitHash:string){
-    const {data} = await axios.get(`${githubUrl}/commit/${commitHash}.diff`,{
-        headers:{
-            Accept:'application/vnd.github.v3.diff'
-        }
-    })
-    return await aiSummariseCommit(data)||""
+async function summarizeCommit(githubUrl: string, commitHash: string) {
+    const targetUrl = githubUrl.endsWith('.git') 
+        ? githubUrl.slice(0, -4) 
+        : githubUrl;
+
+    console.log(`📝 Summarizing commit ${commitHash} from ${targetUrl}`);
+
+    try {
+        const { data } = await axios.get(`${targetUrl}/commit/${commitHash}.diff`, {
+            headers: {
+                Accept: 'application/vnd.github.v3.diff',
+                Authorization: `token ${process.env.GITHUB_TOKEN}`, 
+            },
+        });
+
+        return await aiSummariseCommit(data) || "";
+    } 
+    catch (error) {
+        console.error(`❌ Failed to fetch diff for ${commitHash}:`, error);
+        return "";
+    }
 }
 
 

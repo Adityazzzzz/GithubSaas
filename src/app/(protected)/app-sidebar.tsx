@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import useProject from "@/hooks/use-project"
 import { cn } from "@/lib/utils"
-import { Bot, CreditCard, LayoutDashboard, Plus, Presentation, Archive, Search, FolderTree, BarChart3, GitCommit, GitPullRequest, Shield, BookOpen } from "lucide-react"
+import { Bot, CreditCard, LayoutDashboard, Plus, Presentation, Archive, Search, FolderTree, BarChart3, GitCommit, GitPullRequest, Shield, BookOpen, Kanban } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
@@ -60,6 +60,11 @@ const items = [
         title: "Auto Docs",
         url: "/docs",
         icon: BookOpen,
+    },
+    {
+        title: "PM Studio",
+        url: "/pm-studio",
+        icon: Kanban,
     },
     {
         title: "Billing",

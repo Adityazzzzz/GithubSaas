@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
             where:{id:meetingId},
             data:{
                 status:"COMPLETED",
-                name:summaries[0]!.headline
+                name: summaries[0]?.headline ?? "Untitled Meeting"
             }
         })
 

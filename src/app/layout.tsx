@@ -30,7 +30,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <TRPCReactProvider>{children}</TRPCReactProvider>
+            <TRPCReactProvider>{children}<Analytics /></TRPCReactProvider>
             <Toaster richColors />
           </ThemeProvider>
           <Analytics />

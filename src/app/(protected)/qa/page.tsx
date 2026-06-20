@@ -7,9 +7,10 @@ import AskQuestionCard from '../dashboard/ask-question-card'
 import MDEditor from '@uiw/react-md-editor'
 import CodeReferences from '../dashboard/code-reference'
 import { NoProjectPlaceholder } from '@/components/no-project-placeholder'
+import ExportQAButton from './export-button'
 
 const QAPage = () => {
-    const { projectId } = useProject()
+    const { projectId, project } = useProject()
     const { data: projects } = api.project.getProjects.useQuery()
     const isProjectActive = projects?.find(p => p.id === projectId);
     if (!projectId || (projects && !isProjectActive)) {
@@ -27,7 +28,12 @@ const QAPage = () => {
         <Sheet>
             <AskQuestionCard />
             <div className="h-4"></div>
-            <h1 className='text-xl font-semibold dark:text-white'>Saved Questions</h1>
+            <div className="flex items-center justify-between">
+                <h1 className='text-xl font-semibold dark:text-white'>Saved Questions</h1>
+                {questions && questions.length > 0 && (
+                    <ExportQAButton questions={questions} projectName={project?.name ?? 'project'} />
+                )}
+            </div>
             <div className="h-2"></div>
             <div className="flex flex-col gap-2">
                 {questions?.map((question, index) => {

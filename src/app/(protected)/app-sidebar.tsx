@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import useProject from "@/hooks/use-project"
 import { cn } from "@/lib/utils"
-import { Bot, CreditCard, LayoutDashboard, Plus, Presentation,Archive, Search } from "lucide-react"
+import { Bot, CreditCard, LayoutDashboard, Plus, Presentation, Archive, Search, FolderTree, BarChart3, GitCommit, GitPullRequest, Shield, BookOpen } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
@@ -25,6 +25,41 @@ const items = [
         title: "Meetings",
         url: "/meetings",
         icon: Presentation,
+    },
+    {
+        title: "Files",
+        url: "/files",
+        icon: FolderTree,
+    },
+    {
+        title: "Semantic Search",
+        url: "/search",
+        icon: Search,
+    },
+    {
+        title: "Insights",
+        url: "/insights",
+        icon: BarChart3,
+    },
+    {
+        title: "Changelog",
+        url: "/changelog",
+        icon: GitCommit,
+    },
+    {
+        title: "Pull Requests",
+        url: "/pull-requests",
+        icon: GitPullRequest,
+    },
+    {
+        title: "Security",
+        url: "/security",
+        icon: Shield,
+    },
+    {
+        title: "Auto Docs",
+        url: "/docs",
+        icon: BookOpen,
     },
     {
         title: "Billing",

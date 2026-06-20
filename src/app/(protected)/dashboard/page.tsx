@@ -11,6 +11,7 @@ import ArchiveButton from './archieve-button'
 import TeamMembers from './team-members'
 import { NoProjectPlaceholder } from '@/components/no-project-placeholder'
 import dynamic from 'next/dynamic'
+import IndexingStatus from './indexing-status'
 const InviteButton = dynamic(()=>import('./invite-button'),{ssr:false}) 
 
 const DashboardPage = () => {
@@ -46,10 +47,11 @@ const DashboardPage = () => {
                 </div>
             </div>
 
+            <IndexingStatus />
+
             <div className="mt-4">
                 <div className='grid grid-cols-1 gap-4 sm:grid-cols-5'>
                     <AskQuestionCard/>
-                    <MeetingCard/>
                     <MeetingCard/>
                 </div>
             </div>

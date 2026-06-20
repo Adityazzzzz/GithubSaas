@@ -14,21 +14,23 @@ type FormInput = {
     repoUrl: string
     projectName: string
     githubToken?: string
+    branch?: string
 }
 
 const CreatePage = () => {
-    const { register, handleSubmit, reset, watch, setValue } = useForm<FormInput>()
+    const { register, handleSubmit, reset, watch } = useForm<FormInput>()
     const createProject = api.project.createProject.useMutation()
     const refetch = useRefetch()
     const checkCredits = api.project.checkCredits.useMutation()
     
     const repoUrl = watch('repoUrl');
+    const branch = watch('branch');
 
     useEffect(() => {
         if(checkCredits.data) {
             checkCredits.reset(); 
         }
-    }, [repoUrl, checkCredits.reset]); 
+    }, [repoUrl, branch, checkCredits.reset]); 
 
     function onSubmit(data: FormInput) {
         if (!!checkCredits.data) {
@@ -37,6 +39,7 @@ const CreatePage = () => {
                     githubUrl: data.repoUrl,
                     name: data.projectName,
                     githubToken: data.githubToken,
+                    branch: data.branch || undefined,
                 },
                 {
                     onSuccess: () => {
@@ -52,10 +55,10 @@ const CreatePage = () => {
             )
         } 
         else {
-
             checkCredits.mutate({
                 githubUrl: data.repoUrl,
-                githubToken: data.githubToken
+                githubToken: data.githubToken,
+                branch: data.branch || undefined,
             })
         }
     }
@@ -94,6 +97,11 @@ const CreatePage = () => {
                             placeholder='Github URL'
                             type='url'
                             required
+                        />
+                        <div className='h-2'></div>
+                        <Input 
+                            {...register('branch')}
+                            placeholder='Branch (Optional, defaults to default branch)'
                         />
                         <div className='h-2'></div>
                         <Input 

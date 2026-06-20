@@ -20,7 +20,8 @@ model User {
   emailAddress   String          @unique
   credits        Int             @default(150)
   userToProjects UserToProject[]
-  questionAsked Question[]
+  questionAsked  Question[]
+  chatSessions   ChatSession[]
   razorpayTransaction RazorpayTransaction[]
 }
 
@@ -30,7 +31,12 @@ model Project {
   updatedAt            DateTime              @updatedAt
   name                 String
   githubUrl            String
+  branch               String                @default("main")
   deletedAt            DateTime?
+
+  indexingStatus       IndexingStatus        @default(PENDING)
+  indexingProgress     Int                   @default(0)
+  totalFiles           Int                   @default(0)
 
   commits              Commit[]
   sourceCodeEmbeddings SourceCodeEmbedding[]
@@ -38,6 +44,7 @@ model Project {
 
   savedQuestions       Question[]
   meetings             Meeting[]
+  chatSessions         ChatSession[]
 
   status ProjectStatus @default(ACTIVE)
 }
@@ -46,6 +53,13 @@ enum ProjectStatus {
   ACTIVE
   ARCHIVED
   RESTORING
+}
+
+enum IndexingStatus {
+  PENDING
+  INDEXING
+  READY
+  FAILED
 }
 
 model UserToProject {
@@ -122,6 +136,24 @@ model Question {
 
   userId          String
   user            User    @relation(fields:[userId], references:[id])
+
+  chatSessionId   String?
+  chatSession     ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
+}
+
+model ChatSession {
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  name            String    @default("New Chat")
+
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+
+  questions       Question[]
 }
 
 model Commit {

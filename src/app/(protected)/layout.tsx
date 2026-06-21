@@ -22,11 +22,6 @@ const SidebarLayout = ({ children }: Props) => {
     },[])
     if (!mounted) return null
 
-    const isPmPage = pathname.includes('/pm-studio')
-    if (isPmPage) {
-        return <div className="w-screen h-screen overflow-hidden bg-[#070b13] text-foreground">{children}</div>
-    }
-
     return (
         <SidebarProvider>
             <AppSidebar />

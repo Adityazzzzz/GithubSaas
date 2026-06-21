@@ -109,10 +109,12 @@ export function AppSidebar(){
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {items.map(i=>{
+                                const href = i.title === "PM Studio" ? `/${projectId}/pmstudio` : i.url
+                                const isActive = pathname === href || (i.title === "PM Studio" && pathname.includes('/pmstudio'))
                                 return (
                                     <SidebarMenuItem key={i.title}>
                                         <SidebarMenuButton asChild>
-                                            <Link href={i.url} className={cn({'bg-primary! text-white!':pathname === i.url},'list-none')}>
+                                            <Link href={href} className={cn({'bg-primary! text-white!': isActive},'list-none')}>
                                                 <i.icon/>
                                                 <span>{i.title}</span>
                                             </Link>

@@ -153,6 +153,7 @@ export const pmRouter = createTRPCRouter({
         subTeamId: z.string().nullable().optional(),
         assigneeId: z.string().nullable().optional(),
         status: z.string().optional(),
+        dueDate: z.coerce.date().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -172,6 +173,7 @@ export const pmRouter = createTRPCRouter({
           sprintId: input.sprintId || null,
           subTeamId: input.subTeamId || null,
           assigneeId: input.assigneeId || null,
+          dueDate: input.dueDate || null,
         },
         include: {
           assignee: true,

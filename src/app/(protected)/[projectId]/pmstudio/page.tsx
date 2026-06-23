@@ -349,6 +349,9 @@ export default function DynamicPmStudioPage() {
               setDefaultDueDate(date || null)
               setIsCreateTaskOpen(true)
             }}
+            onCreateLoomSyncTask={(title, description, subTeamId) => {
+              handleCreateTask(title, description, "LOW", null, subTeamId, null, "TODO", new Date(), new Date())
+            }}
           />
         </TabsContent>
         

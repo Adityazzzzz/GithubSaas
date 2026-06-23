@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Globe, Video, Clock, Settings, CalendarDays, LayoutGrid, LayoutList, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -7,16 +7,30 @@ import { toast } from 'sonner'
 
 interface CalendarViewProps {
   tasks: any[]
+  teams?: any[]
+  members?: any[]
   onCardClick: (task: any) => void
   onNewIssueClick: (date?: Date) => void
 }
 
-export function CalendarView({ tasks, onCardClick, onNewIssueClick }: CalendarViewProps) {
+export function CalendarView({ 
+  tasks, 
+  teams = [], 
+  members = [], 
+  onCardClick, 
+  onNewIssueClick 
+}: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'list'>('month')
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
   const [overlayCalendar, setOverlayCalendar] = useState(false)
+  const [now, setNow] = useState(new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000)
+    return () => clearInterval(timer)
+  }, [])
 
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate()
@@ -166,11 +180,98 @@ export function CalendarView({ tasks, onCardClick, onNewIssueClick }: CalendarVi
   // Week View dates computation
   const startOfWeek = new Date(selectedDate)
   startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay())
+  startOfWeek.setHours(0, 0, 0, 0)
+  
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(startOfWeek)
     d.setDate(startOfWeek.getDate() + i)
     return d
   })
+
+  const weekStart = new Date(startOfWeek)
+  const weekEnd = new Date(startOfWeek)
+  weekEnd.setDate(startOfWeek.getDate() + 6)
+  weekEnd.setHours(23, 59, 59, 999)
+
+  const getTaskRange = (task: any) => {
+    if (!task.dueDate) return null
+    const due = new Date(task.dueDate)
+    let start: Date
+    
+    if (task.startDate) {
+      start = new Date(task.startDate)
+    } else {
+      start = new Date(due)
+      // Organic duration based on priority/status
+      let days = 1
+      if (task.priority === 'URGENT') days = 3
+      else if (task.priority === 'HIGH') days = 2
+      else if (task.priority === 'MEDIUM') days = 2
+      
+      start.setDate(due.getDate() - (days - 1))
+    }
+    
+    start.setHours(0, 0, 0, 0)
+    due.setHours(23, 59, 59, 999)
+    return { start, end: due }
+  }
+
+  const getTeamColor = (teamId: string | null, index: number) => {
+    if (!teamId) return {
+      bg: "bg-slate-500/10 hover:bg-slate-500/20 text-slate-300 border-slate-500/20 hover:border-slate-500/30",
+      pill: "bg-slate-500/20 text-slate-300",
+    }
+    const colors = [
+      { bg: "bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border-indigo-500/20 hover:border-indigo-500/30", pill: "bg-indigo-500/20 text-indigo-300" },
+      { bg: "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/20 hover:border-emerald-500/30", pill: "bg-emerald-500/20 text-emerald-300" },
+      { bg: "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/20 hover:border-amber-500/30", pill: "bg-amber-500/20 text-amber-300" },
+      { bg: "bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/20 hover:border-rose-500/30", pill: "bg-rose-500/20 text-rose-300" },
+      { bg: "bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border-sky-500/20 hover:border-sky-500/30", pill: "bg-sky-500/20 text-sky-300" },
+      { bg: "bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-purple-500/20 hover:border-purple-500/30", pill: "bg-purple-500/20 text-purple-300" },
+    ]
+    return colors[index % colors.length]!
+  }
+
+  const allocateTracks = (rowTasks: any[]) => {
+    const tracks: any[][] = []
+    rowTasks.forEach(task => {
+      const range = getTaskRange(task)
+      if (!range) return
+      
+      let placed = false
+      for (let i = 0; i < tracks.length; i++) {
+        const track = tracks[i]!
+        const overlaps = track.some(t => {
+          const r = getTaskRange(t)!
+          return range.start <= r.end && range.end >= r.start
+        })
+        if (!overlaps) {
+          track.push(task)
+          placed = true
+          break
+        }
+      }
+      if (!placed) {
+        tracks.push([task])
+      }
+    })
+    return tracks
+  }
+
+  const weekTasks = tasks.filter(task => {
+    const range = getTaskRange(task)
+    if (!range) return false
+    return range.start <= weekEnd && range.end >= weekStart
+  })
+
+  const todayIndex = weekDays.findIndex(d => d.toDateString() === now.toDateString())
+  const dayFraction = (now.getHours() + now.getMinutes() / 60) / 24
+  const markerPosition = todayIndex !== -1 ? (todayIndex + dayFraction) / 7 : null
+
+  const rows = [
+    ...teams,
+    { id: 'unassigned', name: 'Unassigned Tasks' }
+  ]
 
   // Timeline slots structure
   const daySlots = [
@@ -489,96 +590,144 @@ export function CalendarView({ tasks, onCardClick, onNewIssueClick }: CalendarVi
           )}
 
           {viewMode === 'week' && (
-            <div className="grid grid-cols-7 border border-border/80 rounded-2xl overflow-hidden flex-1 min-h-[400px] bg-background">
-              {weekDays.map((day, idx) => {
-                const isToday = today.toDateString() === day.toDateString()
-                const isSelected = selectedDate.toDateString() === day.toDateString()
-                const dayTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === day.toDateString())
-                const dayMockEvents = overlayCalendar ? getMockEvents(day) : []
-                const allItems = [
-                  ...dayTasks.map(t => ({ ...t, isMock: false })),
-                  ...dayMockEvents.map(e => ({ ...e, isMock: true }))
-                ]
-
-                return (
-                  <div 
-                    key={idx} 
-                    onClick={() => setSelectedDate(day)}
-                    className={`flex flex-col border-r border-border last:border-r-0 h-full hover:bg-muted/5 transition-colors group cursor-pointer ${
-                      isSelected ? 'bg-primary/[0.01]' : ''
-                    }`}
-                  >
-                    <div className="p-4 border-b border-border text-center flex flex-col items-center select-none bg-muted/10">
-                      <span className="text-[10px] font-extrabold text-muted-foreground tracking-widest">{dayNames[day.getDay()]}</span>
-                      <span className={`text-base font-extrabold mt-1.5 size-8 flex items-center justify-center rounded-xl transition-all ${
-                        isToday 
-                          ? 'bg-foreground text-background shadow-md' 
-                          : isSelected
-                            ? 'text-primary font-black'
+            <div className="flex flex-col border border-border rounded-2xl overflow-hidden flex-1 min-h-[400px] bg-background">
+              {/* Timeline Header Row */}
+              <div className="flex border-b border-border bg-muted/10 shrink-0 select-none">
+                {/* Left Corner Spacing */}
+                <div className="w-56 border-r border-border p-4 flex items-center justify-between font-bold text-xs uppercase tracking-wider text-muted-foreground">
+                  Sub-Teams
+                </div>
+                {/* 7 Days Columns */}
+                <div className="flex-1 grid grid-cols-7">
+                  {weekDays.map((day, idx) => {
+                    const isToday = today.toDateString() === day.toDateString()
+                    return (
+                      <div key={idx} className="p-3 border-r border-border/40 last:border-r-0 text-center flex flex-col items-center justify-center">
+                        <span className="text-[10px] font-extrabold text-muted-foreground tracking-widest">{dayNames[day.getDay()]}</span>
+                        <span className={`text-sm font-extrabold mt-1 size-7 flex items-center justify-center rounded-lg transition-all ${
+                          isToday 
+                            ? 'bg-foreground text-background shadow-sm font-black' 
                             : 'text-foreground'
-                      }`}>
-                        {day.getDate()}
-                      </span>
-                    </div>
-
-                    <ScrollArea className="flex-1">
-                      <div className="p-3 space-y-2">
-                        {allItems.map((item, itemIdx) => {
-                          if (item.isMock) {
-                            return (
-                              <div 
-                                key={`mock-${itemIdx}`}
-                                className="border border-primary/20 bg-primary/5 rounded-xl p-3 text-left space-y-1 cursor-default select-none"
-                              >
-                                <div className="flex items-center gap-1.5 text-primary">
-                                  <Video className="size-3" />
-                                  <span className="text-xs font-bold truncate">{item.title}</span>
-                                </div>
-                                <div className="text-[10px] text-primary/70 font-semibold">{formatTimeStr(item.time)} ({item.duration})</div>
-                              </div>
-                            )
-                          } else {
-                            return (
-                              <div 
-                                key={item.id}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onCardClick(item)
-                                }}
-                                className="border border-border hover:border-foreground/30 bg-background rounded-xl p-3 text-left space-y-2 cursor-pointer transition-colors relative"
-                              >
-                                <p className="text-xs font-bold text-foreground line-clamp-2 leading-relaxed">{item.title}</p>
-                                <div className="flex items-center justify-between text-[10px]">
-                                  <span className={`px-2 py-0.5 rounded-md font-bold ${
-                                    item.priority === 'HIGH' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
-                                    item.priority === 'MEDIUM' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
-                                    'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                                  }`}>
-                                    {item.priority}
-                                  </span>
-                                  <span className="text-muted-foreground font-semibold uppercase">{item.status}</span>
-                                </div>
-                              </div>
-                            )
-                          }
-                        })}
-
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedDate(day)
-                            onNewIssueClick(day)
-                          }}
-                          className="w-full border border-dashed border-border hover:border-primary/50 hover:bg-primary/[0.01] rounded-xl py-4 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-primary transition-all opacity-0 group-hover:opacity-100"
-                        >
-                          <Plus className="size-4" />
-                          <span className="text-[10px] font-bold">Add Task</span>
-                        </button>
+                        }`}>
+                          {day.getDate()}
+                        </span>
                       </div>
-                    </ScrollArea>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Timeline Rows Area */}
+              <div className="flex-1 overflow-y-auto relative min-h-0">
+                {/* Marker Line */}
+                {markerPosition !== null && (
+                  <div 
+                    className="absolute top-0 bottom-0 w-[1.5px] bg-blue-500 z-30 pointer-events-none"
+                    style={{ left: `calc(14rem + (100% - 14rem) * ${markerPosition})` }}
+                  >
+                    <div className="absolute -top-1.5 -left-5 px-1.5 py-0.5 rounded-full bg-blue-500 text-[8px] font-black text-white shadow-md">
+                      {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })}
+                    </div>
                   </div>
-                )
-              })}
+                )}
+
+                <div className="divide-y divide-border">
+                  {rows.map((row, rowIdx) => {
+                    const rowTasks = weekTasks.filter(t => 
+                      row.id === 'unassigned' ? !t.subTeamId : t.subTeamId === row.id
+                    )
+                    
+                    const tracks = allocateTracks(rowTasks)
+
+                    return (
+                      <div key={row.id} className="flex min-h-[4rem] relative group/row hover:bg-muted/[0.01] transition-colors">
+                        {/* Left Sub-team Header */}
+                        <div className="w-56 border-r border-border p-4 flex flex-col justify-center shrink-0 bg-background z-10">
+                          <div className="flex items-center gap-2">
+                            <span className={`size-2 rounded-full shrink-0 ${
+                              row.id === 'unassigned' ? 'bg-slate-400' : 
+                              rowIdx % 5 === 0 ? 'bg-indigo-500' :
+                              rowIdx % 5 === 1 ? 'bg-emerald-500' :
+                              rowIdx % 5 === 2 ? 'bg-amber-500' :
+                              rowIdx % 5 === 3 ? 'bg-rose-500' : 'bg-sky-500'
+                            }`} />
+                            <span className="text-xs font-bold text-foreground truncate">{row.name}</span>
+                          </div>
+                          {rowTasks.length > 0 && (
+                            <span className="text-[10px] text-muted-foreground font-semibold mt-1">
+                              {rowTasks.length} {rowTasks.length === 1 ? 'task' : 'tasks'} this week
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Right Grid Column Area */}
+                        <div className="flex-1 relative min-h-[4rem] flex flex-col justify-center py-2">
+                          {/* Clickable Background Grid Cells */}
+                          <div className="absolute inset-0 grid grid-cols-7 pointer-events-auto">
+                            {weekDays.map((day, colIdx) => (
+                              <div 
+                                key={colIdx} 
+                                onClick={() => {
+                                  const d = new Date(day)
+                                  d.setHours(9, 0, 0, 0)
+                                  onNewIssueClick(d)
+                                }}
+                                className="border-r border-border/20 last:border-r-0 h-full hover:bg-muted/5 transition-colors cursor-pointer"
+                              />
+                            ))}
+                          </div>
+
+                          {/* Foreground Task Bars */}
+                          <div className="relative z-10 pointer-events-none px-2 space-y-2">
+                            {tracks.length === 0 ? (
+                              <div className="h-8" />
+                            ) : (
+                              tracks.map((track, trackIdx) => (
+                                <div key={trackIdx} className="grid grid-cols-7 gap-2 h-8 items-center">
+                                  {track.map(task => {
+                                    const range = getTaskRange(task)!
+                                    const startDay = Math.max(0, Math.floor((range.start.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)))
+                                    const endDay = Math.min(6, Math.floor((range.end.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)))
+                                    const colStart = startDay + 1
+                                    const colSpan = endDay - startDay + 1
+                                    
+                                    // Resolve team color index
+                                    const teamIndex = teams.findIndex(t => t.id === task.subTeamId)
+                                    const colors = getTeamColor(task.subTeamId, teamIndex >= 0 ? teamIndex : 0)
+                                    
+                                    // Resolve assignee name/initials
+                                    const assignee = members.find(m => m.id === task.assigneeId)
+                                    const initials = assignee ? (assignee.firstName && assignee.lastName ? `${assignee.firstName[0]}${assignee.lastName[0]}` : assignee.emailAddress?.[0]?.toUpperCase() || '?') : '?'
+                                    
+                                    return (
+                                      <div
+                                        key={task.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          onCardClick(task)
+                                        }}
+                                        style={{ gridColumn: `${colStart} / span ${colSpan}` }}
+                                        className={`h-7 px-2.5 rounded-xl border flex items-center gap-2 cursor-pointer shadow-sm hover:scale-[1.01] active:scale-95 transition-all pointer-events-auto truncate select-none ${colors.bg}`}
+                                      >
+                                        <Avatar className="size-4 shrink-0 border border-current/10 bg-background text-[8px] font-bold">
+                                          <AvatarFallback className="text-[8px] font-black text-foreground bg-muted">
+                                            {initials}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-[11px] font-bold truncate leading-none">{task.title}</span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
           )}
 

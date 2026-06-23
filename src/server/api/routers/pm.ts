@@ -2,6 +2,117 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, projectProcedure } from "../trpc";
 import { getPullRequests, octokit } from "@/lib/github";
 
+const STATUS_CONFIG_LOCAL: Record<string, string> = {
+  BACKLOG: "Backlog",
+  TODO: "To Do",
+  IN_PROGRESS: "In Progress",
+  REVIEW: "In Review",
+  DONE: "Done",
+};
+
+async function executeAutomationRules(
+  db: any,
+  projectId: string,
+  taskId: string,
+  event: "CREATED" | "STATUS_CHANGED" | "PRIORITY_CHANGED",
+  details: { previousStatus?: string; currentStatus?: string; previousPriority?: string; currentPriority?: string }
+) {
+  const rules = await db.automationRule.findMany({
+    where: { projectId, isActive: true },
+  });
+
+  if (rules.length === 0) return;
+
+  const task = await db.pmTask.findUnique({
+    where: { id: taskId },
+  });
+
+  if (!task) return;
+
+  for (const rule of rules) {
+    if (!rule.trigger.startsWith("{")) continue;
+
+    try {
+      const triggerData = JSON.parse(rule.trigger);
+      const actionData = JSON.parse(rule.action);
+
+      if (triggerData.type !== "CUSTOM") continue;
+
+      let triggerMatches = false;
+      if (event === "CREATED" && triggerData.whenType === "CREATED") {
+        triggerMatches = true;
+      } else if (event === "STATUS_CHANGED" && triggerData.whenType === "STATUS_TO") {
+        triggerMatches = details.currentStatus === triggerData.whenValue && details.previousStatus !== triggerData.whenValue;
+      } else if (event === "PRIORITY_CHANGED" && triggerData.whenType === "PRIORITY_TO") {
+        triggerMatches = details.currentPriority === triggerData.whenValue && details.previousPriority !== triggerData.whenValue;
+      }
+
+      if (!triggerMatches) continue;
+
+      let conditionMatches = false;
+      if (triggerData.ifType === "ALWAYS") {
+        conditionMatches = true;
+      } else if (triggerData.ifType === "UNASSIGNED") {
+        conditionMatches = task.assigneeId === null;
+      } else if (triggerData.ifType === "SQUAD_IS") {
+        conditionMatches = task.subTeamId === triggerData.ifValue;
+      } else if (triggerData.ifType === "PRIORITY_IS") {
+        conditionMatches = task.priority === triggerData.ifValue;
+      }
+
+      if (!conditionMatches) continue;
+
+      let updateData: any = {};
+      let logCommentText = "";
+
+      if (actionData.thenType === "MOVE_STATUS") {
+        if (task.status !== actionData.thenValue) {
+          updateData.status = actionData.thenValue;
+          logCommentText = `Moved task status to "${STATUS_CONFIG_LOCAL[actionData.thenValue] || actionData.thenValue}"`;
+        }
+      } else if (actionData.thenType === "ASSIGN_MEMBER") {
+        if (task.assigneeId !== actionData.thenValue) {
+          updateData.assigneeId = actionData.thenValue;
+          const assignedUser = await db.user.findUnique({ where: { id: actionData.thenValue } });
+          const name = assignedUser ? `${assignedUser.firstName ?? ""} ${assignedUser.lastName ?? ""}`.trim() || assignedUser.emailAddress : "assigned member";
+          logCommentText = `Assigned task to ${name}.`;
+        }
+      } else if (actionData.thenType === "SET_PRIORITY") {
+        if (task.priority !== actionData.thenValue) {
+          updateData.priority = actionData.thenValue;
+          logCommentText = `Set priority level to "${actionData.thenValue}"`;
+        }
+      } else if (actionData.thenType === "CHECKLIST_TEMPLATE") {
+        const checklist = "\n\n- [ ] Technical review checklist\n- [ ] QA validation verification\n- [ ] Release documentation updated";
+        if (!task.description?.includes("Technical review checklist")) {
+          updateData.description = (task.description ?? "") + checklist;
+          logCommentText = `Populated default onboarding & QA checklists in description.`;
+        }
+      } else if (actionData.thenType === "ALERT_LOG") {
+        logCommentText = `Automation execution log alert triggered. Task validated against rule requirements.`;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await db.pmTask.update({
+          where: { id: taskId },
+          data: updateData,
+        });
+      }
+
+      if (logCommentText) {
+        await db.pmComment.create({
+          data: {
+            taskId,
+            text: `[Automation Bot] ⚡ ${logCommentText}`,
+          },
+        });
+      }
+    } catch (e) {
+      console.error("Failed to execute automation rule:", e);
+    }
+  }
+}
+
 export const pmRouter = createTRPCRouter({
   // ─── Sprints ───────────────────────────────────────────────────────────────
   getSprints: projectProcedure
@@ -104,6 +215,32 @@ export const pmRouter = createTRPCRouter({
       });
     }),
 
+  updateSubTeam: projectProcedure
+    .input(
+      z.object({
+        subTeamId: z.string(),
+        name: z.string().min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.subTeam.update({
+        where: { id: input.subTeamId },
+        data: { name: input.name },
+      });
+    }),
+
+  deleteSubTeam: projectProcedure
+    .input(
+      z.object({
+        subTeamId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.subTeam.delete({
+        where: { id: input.subTeamId },
+      });
+    }),
+
   // ─── Tasks ─────────────────────────────────────────────────────────────────
   getTasks: projectProcedure
     .input(
@@ -154,6 +291,7 @@ export const pmRouter = createTRPCRouter({
         assigneeId: z.string().nullable().optional(),
         status: z.string().optional(),
         dueDate: z.coerce.date().nullable().optional(),
+        startDate: z.coerce.date().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -162,7 +300,7 @@ export const pmRouter = createTRPCRouter({
       });
       const issueKey = `GB-${taskCount + 1}`;
 
-      return await ctx.db.pmTask.create({
+      const newTask = await ctx.db.pmTask.create({
         data: {
           projectId: input.projectId,
           title: input.title,
@@ -174,6 +312,7 @@ export const pmRouter = createTRPCRouter({
           subTeamId: input.subTeamId || null,
           assigneeId: input.assigneeId || null,
           dueDate: input.dueDate || null,
+          startDate: input.startDate || null,
         },
         include: {
           assignee: true,
@@ -181,6 +320,10 @@ export const pmRouter = createTRPCRouter({
           sprint: true,
         },
       });
+
+      await executeAutomationRules(ctx.db, input.projectId, newTask.id, "CREATED", {});
+
+      return newTask;
     }),
 
   updateTaskStatus: protectedProcedure
@@ -191,10 +334,23 @@ export const pmRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return await ctx.db.pmTask.update({
+      const task = await ctx.db.pmTask.findUnique({
+        where: { id: input.taskId },
+      });
+      if (!task) throw new Error("Task not found");
+
+      const previousStatus = task.status;
+      const updatedTask = await ctx.db.pmTask.update({
         where: { id: input.taskId },
         data: { status: input.status },
       });
+
+      await executeAutomationRules(ctx.db, task.projectId, task.id, "STATUS_CHANGED", {
+        previousStatus,
+        currentStatus: input.status,
+      });
+
+      return updatedTask;
     }),
 
   updateTaskDetails: protectedProcedure
@@ -208,10 +364,17 @@ export const pmRouter = createTRPCRouter({
         subTeamId: z.string().nullable().optional(),
         assigneeId: z.string().nullable().optional(),
         dueDate: z.coerce.date().nullable().optional(),
+        startDate: z.coerce.date().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return await ctx.db.pmTask.update({
+      const task = await ctx.db.pmTask.findUnique({
+        where: { id: input.taskId },
+      });
+      if (!task) throw new Error("Task not found");
+
+      const previousPriority = task.priority;
+      const updatedTask = await ctx.db.pmTask.update({
         where: { id: input.taskId },
         data: {
           title: input.title,
@@ -221,6 +384,7 @@ export const pmRouter = createTRPCRouter({
           subTeamId: input.subTeamId || null,
           assigneeId: input.assigneeId || null,
           dueDate: input.dueDate || null,
+          startDate: input.startDate || null,
         },
         include: {
           assignee: true,
@@ -228,6 +392,15 @@ export const pmRouter = createTRPCRouter({
           sprint: true,
         },
       });
+
+      if (previousPriority !== input.priority) {
+        await executeAutomationRules(ctx.db, task.projectId, task.id, "PRIORITY_CHANGED", {
+          previousPriority,
+          currentPriority: input.priority,
+        });
+      }
+
+      return updatedTask;
     }),
 
   deleteTask: protectedProcedure
@@ -331,6 +504,18 @@ export const pmRouter = createTRPCRouter({
       return await ctx.db.automationRule.update({
         where: { id: input.ruleId },
         data: { isActive: input.isActive },
+      });
+    }),
+
+  deleteAutomationRule: protectedProcedure
+    .input(
+      z.object({
+        ruleId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.automationRule.delete({
+        where: { id: input.ruleId },
       });
     }),
 

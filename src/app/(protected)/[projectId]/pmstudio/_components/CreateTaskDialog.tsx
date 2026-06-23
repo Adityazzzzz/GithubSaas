@@ -24,7 +24,8 @@ interface CreateTaskDialogProps {
     subTeamId: string | null,
     assigneeId: string | null,
     status?: string,
-    dueDate?: Date | null
+    dueDate?: Date | null,
+    startDate?: Date | null
   ) => void
   isCreating: boolean
   members: any[]
@@ -50,11 +51,13 @@ export function CreateTaskDialog({
   const [sprintId, setSprintId] = useState<string>('none')
   const [subTeamId, setSubTeamId] = useState<string>('none')
   const [dueDate, setDueDate] = useState<string>('')
+  const [startDate, setStartDate] = useState<string>('')
 
   // Sync date when dialog opens
   useEffect(() => {
     if (isOpen) {
       setDueDate(defaultDueDate ? (defaultDueDate.toISOString().split('T')[0] ?? '') : '')
+      setStartDate(defaultDueDate ? (defaultDueDate.toISOString().split('T')[0] ?? '') : '')
     }
   }, [isOpen, defaultDueDate])
 
@@ -66,6 +69,7 @@ export function CreateTaskDialog({
     setSprintId('none')
     setSubTeamId('none')
     setDueDate('')
+    setStartDate('')
   }
 
   const handleCreate = () => {
@@ -78,7 +82,8 @@ export function CreateTaskDialog({
         subTeamId === 'none' ? null : subTeamId,
         assigneeId === 'none' ? null : assigneeId,
         undefined, // status
-        defaultDueDate ? defaultDueDate : (dueDate ? new Date(dueDate) : null)
+        defaultDueDate ? defaultDueDate : (dueDate ? new Date(dueDate) : null),
+        defaultDueDate ? defaultDueDate : (startDate ? new Date(startDate) : null)
       )
       resetForm()
     }
@@ -152,15 +157,26 @@ export function CreateTaskDialog({
               </Select>
             </div>
             {!defaultDueDate && (
-              <div className="space-y-2 col-span-2">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Due Date</label>
-                <Input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="h-10 text-sm border-border/60 rounded-xl bg-background hover:bg-muted/30 focus:bg-background focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors shadow-sm font-semibold px-4 py-2"
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Start Date</label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-10 text-sm border-border/60 rounded-xl bg-background hover:bg-muted/30 focus:bg-background focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors shadow-sm font-semibold px-4 py-2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Due Date</label>
+                  <Input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="h-10 text-sm border-border/60 rounded-xl bg-background hover:bg-muted/30 focus:bg-background focus-visible:ring-1 focus-visible:ring-blue-500 transition-colors shadow-sm font-semibold px-4 py-2"
+                  />
+                </div>
+              </>
             )}
           </div>
         </div>

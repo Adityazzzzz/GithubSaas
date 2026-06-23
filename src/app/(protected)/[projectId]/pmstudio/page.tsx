@@ -51,9 +51,10 @@ export default function DynamicPmStudioPage() {
   const { data: tasks = [], isLoading: tasksLoading } = api.pm.getTasks.useQuery(
     { projectId }, { enabled: !!projectId }
   )
-  const { data: sprints = [] } = api.pm.getSprints.useQuery(
+  const sprintsQuery = api.pm.getSprints.useQuery(
     { projectId }, { enabled: !!projectId }
   )
+  const sprints = sprintsQuery.data ?? []
   const { data: teams = [] } = api.pm.getSubTeams.useQuery(
     { projectId }, { enabled: !!projectId }
   )
@@ -143,6 +144,20 @@ export default function DynamicPmStudioPage() {
     }
   })
 
+  const updateSubTeamMutation = api.pm.updateSubTeam.useMutation({
+    onSuccess: () => {
+      utils.pm.getSubTeams.invalidate({ projectId })
+      toast.success('Team updated')
+    }
+  })
+
+  const deleteSubTeamMutation = api.pm.deleteSubTeam.useMutation({
+    onSuccess: () => {
+      utils.pm.getSubTeams.invalidate({ projectId })
+      toast.success('Team deleted')
+    }
+  })
+
   const addCommentMutation = api.pm.addComment.useMutation({
     onSuccess: () => { 
       refetchComments()
@@ -159,6 +174,13 @@ export default function DynamicPmStudioPage() {
   const toggleAutomationMutation = api.pm.toggleAutomationRule.useMutation({
     onSuccess: () => { 
       utils.pm.getAutomations.invalidate({ projectId }) 
+    }
+  })
+
+  const deleteAutomationMutation = api.pm.deleteAutomationRule.useMutation({
+    onSuccess: () => {
+      utils.pm.getAutomations.invalidate({ projectId })
+      toast.success('Automation rule deleted')
     }
   })
 
@@ -207,6 +229,7 @@ export default function DynamicPmStudioPage() {
       subTeamId: fields.subTeamId,
       assigneeId: fields.assigneeId,
       dueDate: fields.dueDate ? new Date(fields.dueDate) : null,
+      startDate: fields.startDate ? new Date(fields.startDate) : null,
     })
   }
 
@@ -218,7 +241,8 @@ export default function DynamicPmStudioPage() {
     subTeamId: string | null,
     assigneeId: string | null,
     status?: string,
-    dueDate?: Date | null
+    dueDate?: Date | null,
+    startDate?: Date | null
   ) => {
     createTask.mutate({
       projectId,
@@ -230,6 +254,7 @@ export default function DynamicPmStudioPage() {
       assigneeId: assigneeId || undefined,
       status: status || undefined,
       dueDate: dueDate || undefined,
+      startDate: startDate || undefined,
     })
   }
 
@@ -317,6 +342,8 @@ export default function DynamicPmStudioPage() {
         <TabsContent value="calendar" className="flex-1 min-h-0 border-t border-border mt-0 data-[state=active]:flex data-[state=active]:flex-col">
           <CalendarView 
             tasks={tasks}
+            teams={teams}
+            members={members}
             onCardClick={setSelectedTask}
             onNewIssueClick={(date) => {
               setDefaultDueDate(date || null)
@@ -329,10 +356,15 @@ export default function DynamicPmStudioPage() {
           <TeamsView 
             teams={teams}
             tasks={tasks}
+            members={members}
             newTeamName={newTeamName}
             setNewTeamName={setNewTeamName}
             onCreateTeam={handleCreateTeam}
             isCreatingTeam={createSubTeamMutation.isPending}
+            onUpdateTeam={(id, name) => updateSubTeamMutation.mutate({ subTeamId: id, name })}
+            onDeleteTeam={(id) => deleteSubTeamMutation.mutate({ subTeamId: id })}
+            onCreatePlaceholderTask={(assigneeId, subTeamId) => handleCreateTask("Onboarding Placeholder", "Placeholder task created automatically when adding this member to the sub-team.", "LOW", null, subTeamId, assigneeId, "TODO")}
+            onCardClick={setSelectedTask}
           />
         </TabsContent>
 
@@ -341,6 +373,9 @@ export default function DynamicPmStudioPage() {
             automations={automations}
             onSaveRule={handleSaveAutomationRule}
             onToggleRule={handleToggleAutomationRule}
+            onDeleteRule={(ruleId) => deleteAutomationMutation.mutate({ ruleId })}
+            members={members}
+            teams={teams}
           />
         </TabsContent>
 

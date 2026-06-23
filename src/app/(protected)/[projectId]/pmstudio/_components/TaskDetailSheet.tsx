@@ -77,6 +77,7 @@ export function TaskDetailSheet({
         subTeamId: selectedTask.subTeamId,
         assigneeId: selectedTask.assigneeId,
         dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+        startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
       })
     }
   }
@@ -110,6 +111,7 @@ export function TaskDetailSheet({
       subTeamId: selectedTask.subTeamId,
       assigneeId: selectedTask.assigneeId,
       dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+      startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
     })
   }
 
@@ -275,7 +277,8 @@ export function TaskDetailSheet({
                 onUpdateTaskDetails(selectedTask.id, {
                   ...selectedTask,
                   priority: val,
-                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null
+                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+                  startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
                 })
               }}>
                 <SelectTrigger className="h-11 text-sm border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:ring-1 focus:ring-blue-500"><SelectValue /></SelectTrigger>
@@ -295,7 +298,8 @@ export function TaskDetailSheet({
                 onUpdateTaskDetails(selectedTask.id, {
                   ...selectedTask,
                   assigneeId,
-                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null
+                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+                  startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
                 })
               }}>
                 <SelectTrigger className="h-11 text-sm border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:ring-1 focus:ring-blue-500"><SelectValue placeholder="Unassigned" /></SelectTrigger>
@@ -314,7 +318,8 @@ export function TaskDetailSheet({
                 onUpdateTaskDetails(selectedTask.id, {
                   ...selectedTask,
                   sprintId,
-                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null
+                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+                  startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
                 })
               }}>
                 <SelectTrigger className="h-11 text-sm border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:ring-1 focus:ring-blue-500"><SelectValue placeholder="None" /></SelectTrigger>
@@ -335,7 +340,8 @@ export function TaskDetailSheet({
                 onUpdateTaskDetails(selectedTask.id, {
                   ...selectedTask,
                   subTeamId,
-                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null
+                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+                  startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
                 })
               }}>
                 <SelectTrigger className="h-11 text-sm border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:ring-1 focus:ring-blue-500"><SelectValue placeholder="None" /></SelectTrigger>
@@ -344,6 +350,42 @@ export function TaskDetailSheet({
                   {teams.map(t => <SelectItem key={t.id} value={t.id} className="text-sm cursor-pointer">{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Start Date */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Start Date</label>
+              <input
+                type="date"
+                value={selectedTask.startDate ? new Date(selectedTask.startDate).toISOString().split('T')[0] : ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  onUpdateTaskDetails(selectedTask.id, {
+                    ...selectedTask,
+                    startDate: val ? new Date(val) : null,
+                    dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null
+                  })
+                }}
+                className="w-full h-11 text-sm border border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 px-4 text-foreground"
+              />
+            </div>
+
+            {/* Due Date */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Due Date</label>
+              <input
+                type="date"
+                value={selectedTask.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  onUpdateTaskDetails(selectedTask.id, {
+                    ...selectedTask,
+                    dueDate: val ? new Date(val) : null,
+                    startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null
+                  })
+                }}
+                className="w-full h-11 text-sm border border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 px-4 text-foreground"
+              />
             </div>
 
             <Separator className="bg-border/50" />

@@ -31,6 +31,40 @@ It features two main environments:
 
 ```mermaid
 graph TD
+    subgraph SharedContext [Shared Workspace Core]
+        P[Project Context / CUID]
+        S[AppSidebar Navigation]
+        H[useProject State Synchronization]
+        M[Members / UserToProject Relations]
+    end
+
+    subgraph AIStudio [GitBrain AI Studio]
+        D[Codebase Dashboard]
+        Q[Code Q&A Chat Sessions]
+        R[pgvector Semantic Search]
+        ME[Meeting Transcription Processor]
+    end
+
+    subgraph PMStudio [GitBrain PM Studio]
+        K[Kanban Board]
+        SP[Sprints Controller]
+        AU[Automations Rules Engine]
+        L[Loom Canvas Video Recorder]
+    end
+
+    %% Flow and Connections
+    H -->|Resolves Slug to CUID| P
+    P -->|Hydrates Project Scope| AIStudio
+    P -->|Hydrates Project Scope| PMStudio
+    M -->|Queries Code & Chats in| Q
+    M -->|Assigned Tasks & Sprints in| K
+    
+    %% Cross-Studio Data Sync
+    ME -->|AI Action Item Generation| K
+    Q -.->|References Code Files inside| K
+```
+```mermaid
+graph TD
     A[Client Browser] -->|tRPC Queries & Mutations| B[Next.js Server API]
     A -->|Authentication Sessions| C[Clerk Auth Service]
     A -->|Video/Audio Assets| D[Appwrite Storage]
@@ -41,7 +75,6 @@ graph TD
 ```
 ### Architecture:
 ![alt text](image.png)
-
 📚 Deep-Dive Documentation
 For exhaustive technical blueprints, design decisions, and build logs, refer to the following documentation files:
 

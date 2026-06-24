@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -53,25 +53,91 @@ export function TaskDetailSheet({
   sprints,
   teams,
 }: TaskDetailSheetProps) {
+  const MOCK_TRANSCRIPT = [
+    { start: 0, end: 3, text: "Hey squad! I wanted to show you a quick status update on the sprint." },
+    { start: 3, end: 7, text: "The backend tRPC mutations for rules execution are now fully completed." },
+    { start: 7, end: 12, text: "I also updated the calendar timeline with sub-team groupings and vertical stacking." },
+    { start: 12, end: 16, text: "Google Meet rooms now have lobby exit paths and close buttons in the corner." },
+    { start: 16, end: 20, text: "Please check the PR details and let me know if you have any questions." },
+    { start: 20, end: 25, text: "I'll upload the compiled build logs for staging verification next. Thanks!" }
+  ]
+
   const [localTitle, setLocalTitle] = useState('')
   const [localDesc, setLocalDesc] = useState('')
   const [newCommentText, setNewCommentText] = useState('')
+
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [currentTime, setCurrentTime] = useState(0)
+
+  const handleSeek = (seconds: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = seconds
+      videoRef.current.play()
+    }
+  }
 
   // Sync state with selectedTask prop changes
   useEffect(() => {
     if (selectedTask) {
       setLocalTitle(selectedTask.title || '')
-      setLocalDesc(selectedTask.description || '')
+      
+      // Strip Loom headers & video tags for clean text editing
+      let desc = selectedTask.description || ''
+      desc = desc.replace(/### 📹 Loom Video Sync[\s\S]*?(?=<video|<iframe|$)/g, '')
+      desc = desc.replace(/<video[\s\S]*?\/>/g, '')
+      desc = desc.trim()
+      setLocalDesc(desc)
     }
   }, [selectedTask])
 
   if (!selectedTask) return null
 
+  // Extract Loom details
+  const videoUrlMatch = selectedTask.description?.match(/<video src="([^"]+)"/);
+  const videoUrl = videoUrlMatch ? videoUrlMatch[1] : null;
+
+  const transcriptMatch = selectedTask.description?.match(/data-transcript="([^"]+)"/);
+  const activeTranscript = (() => {
+    if (transcriptMatch) {
+      try {
+        return JSON.parse(decodeURIComponent(transcriptMatch[1]))
+      } catch (e) {
+        console.error("Failed to parse real transcript:", e)
+      }
+    }
+    return MOCK_TRANSCRIPT
+  })()
+
   const handleSaveDetails = () => {
-    if (localTitle.trim() !== selectedTask.title || localDesc !== (selectedTask.description || '')) {
+    let finalDesc = localDesc.trim()
+    
+    // Append Loom video details back if they were present
+    const prevVideoUrlMatch = selectedTask.description?.match(/<video src="([^"]+)"/);
+    if (prevVideoUrlMatch) {
+      const recordedVideoUrl = prevVideoUrlMatch[1];
+      
+      const prevTranscriptMatch = selectedTask.description?.match(/data-transcript="([^"]+)"/);
+      const dataTranscriptAttr = prevTranscriptMatch ? `data-transcript="${prevTranscriptMatch[1]}" ` : '';
+
+      const videoHtml = `<video src="${recordedVideoUrl}" ${dataTranscriptAttr}controls class="w-full max-w-md rounded-xl my-2 border border-border shadow" />`
+      
+      const publicLinkMatch = selectedTask.description?.match(/\[🔗 Copy Public Share Link\]\(([^)]+)\)/);
+      const publicUrl = publicLinkMatch ? publicLinkMatch[1] : '';
+
+      finalDesc = `### 📹 Loom Video Sync
+Recorded asynchronous status update for squad review.
+
+[🔗 Copy Public Share Link](${publicUrl})
+
+${videoHtml}
+
+${finalDesc}`.trim();
+    }
+
+    if (localTitle.trim() !== selectedTask.title || finalDesc !== (selectedTask.description || '')) {
       onUpdateTaskDetails(selectedTask.id, {
         title: localTitle.trim() || selectedTask.title,
-        description: localDesc,
+        description: finalDesc,
         priority: selectedTask.priority,
         sprintId: selectedTask.sprintId,
         subTeamId: selectedTask.subTeamId,
@@ -124,7 +190,7 @@ export function TaskDetailSheet({
 
   return (
     <Dialog open={!!selectedTask} onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="sm:max-w-5xl p-0 flex flex-col h-[85vh] overflow-hidden bg-background border-border rounded-2xl shadow-2xl select-none">
+      <DialogContent className="max-w-[92vw] lg:max-w-7xl p-0 flex flex-col h-[90vh] overflow-hidden bg-background border-border rounded-2xl shadow-2xl select-none">
         {/* Header */}
         <DialogHeader className="px-6 py-4 border-b border-border shrink-0 bg-muted/10">
           <div className="flex items-center justify-between pr-8">
@@ -141,7 +207,7 @@ export function TaskDetailSheet({
 
         <div className="flex-1 overflow-hidden flex min-h-0">
           {/* Left Pane: Content */}
-          <div className="flex-1 overflow-y-auto p-8 space-y-8 min-w-0">
+          <div className="flex-1 overflow-y-auto p-8 lg:p-10 space-y-8 min-w-0 scrollbar-thin">
             {/* Title */}
             <div className="space-y-1">
               <Input
@@ -158,6 +224,61 @@ export function TaskDetailSheet({
               />
             </div>
 
+            {videoUrl && (
+              <div className="border border-border/70 rounded-2xl bg-card/30 backdrop-blur-sm overflow-hidden shadow-lg p-8 grid grid-cols-1 md:grid-cols-12 gap-8">
+                {/* Video Player */}
+                <div className="md:col-span-7 flex flex-col justify-between space-y-3">
+                  <div className="flex items-center justify-between shrink-0">
+                    <label className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                      <span className="size-2 bg-rose-500 rounded-full animate-pulse" /> Live Status Recording
+                    </label>
+                    <Badge variant="secondary" className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20 py-0.5 px-2 font-bold uppercase tracking-wider">Cloud Storage</Badge>
+                  </div>
+                  <div className="aspect-video w-full rounded-2xl overflow-hidden bg-zinc-950 border border-border/80 relative shadow-2xl">
+                    <video 
+                      ref={videoRef}
+                      src={videoUrl} 
+                      controls 
+                      className="size-full object-contain"
+                      onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                    />
+                  </div>
+                </div>
+
+                {/* Live Transcription */}
+                <div className="md:col-span-5 flex flex-col h-full min-h-[300px]">
+                  <label className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest mb-4 flex items-center justify-between shrink-0">
+                    <span className="flex items-center gap-1.5">✨ Live Transcription</span>
+                    <Badge variant="secondary" className="text-[9px] bg-blue-500/10 text-blue-600 border-blue-500/20 font-mono py-0.5 px-2 hover:bg-blue-500/15 font-bold">Interactive</Badge>
+                  </label>
+                  <div className="flex-1 bg-muted/20 border border-border/60 rounded-2xl p-5 overflow-y-auto max-h-[380px] min-h-[300px] space-y-3 scrollbar-thin">
+                    {activeTranscript.map((seg: any, sIdx: number) => {
+                      const isActive = currentTime >= seg.start && currentTime <= seg.end;
+                      return (
+                        <div 
+                          key={sIdx} 
+                          onClick={() => handleSeek(seg.start)}
+                          className={`text-xs p-3.5 rounded-xl cursor-pointer border transition-all duration-200 leading-relaxed ${
+                            isActive 
+                              ? 'bg-blue-500/10 border-blue-500/30 text-foreground font-semibold shadow-md translate-x-1' 
+                              : 'bg-card/40 border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/10 hover:border-border'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-[9px] font-mono font-bold tracking-wider ${isActive ? 'text-blue-500' : 'text-muted-foreground/60'}`}>
+                              {Math.floor(seg.start / 60)}:{(seg.start % 60).toString().padStart(2, '0')}
+                            </span>
+                            {isActive && <span className="size-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                          </div>
+                          <p className="font-medium">{seg.text}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Description */}
             <div className="space-y-3">
               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Description</label>
@@ -166,7 +287,7 @@ export function TaskDetailSheet({
                 onChange={(e) => setLocalDesc(e.target.value)}
                 onBlur={handleSaveDetails}
                 placeholder="Describe this issue... Support markdown checklists (- [ ] task)."
-                className="min-h-[200px] resize-none border-border/60 rounded-xl text-sm placeholder-muted-foreground bg-background hover:bg-muted/20 focus:bg-background focus-visible:ring-1 focus-visible:ring-blue-500 transition-all p-4 shadow-sm"
+                className="min-h-[220px] resize-none border-border/60 rounded-xl text-sm placeholder-muted-foreground bg-background hover:bg-muted/20 focus:bg-background focus-visible:ring-1 focus-visible:ring-blue-500 transition-all p-4 shadow-sm"
               />
             </div>
 
@@ -248,154 +369,170 @@ export function TaskDetailSheet({
           </div>
 
           {/* Right Pane: Properties Panel */}
-          <div className="w-[300px] overflow-y-auto p-6 border-l border-border bg-muted/10 space-y-7 shrink-0 select-none">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <div className="w-[320px] overflow-y-auto p-6 border-l border-border bg-muted/5 space-y-6 shrink-0 select-none scrollbar-thin">
+            <h4 className="text-xs font-extrabold text-muted-foreground uppercase tracking-widest flex items-center gap-2 mb-2">
               <Activity className="size-4 text-muted-foreground" /> Issue Properties
             </h4>
 
-            {/* Status */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Status</label>
-              <Select value={selectedTask.status} onValueChange={(val) => {
-                onUpdateTaskStatus(selectedTask.id, val)
-              }}>
-                <SelectTrigger className="h-11 text-sm border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:ring-1 focus:ring-blue-500"><SelectValue /></SelectTrigger>
-                <SelectContent className="rounded-xl border-border/60">
-                  {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                    <SelectItem key={k} value={k} className="text-sm cursor-pointer">
-                      <span className="flex items-center gap-2.5"><span className={`size-2 rounded-full ${v.dot}`} />{v.label}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="space-y-4">
+              {/* Status */}
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <label className="col-span-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status</label>
+                <div className="col-span-2">
+                  <Select value={selectedTask.status} onValueChange={(val) => {
+                    onUpdateTaskStatus(selectedTask.id, val)
+                  }}>
+                    <SelectTrigger className="h-9 text-xs border-border/50 rounded-lg bg-card shadow-none hover:bg-muted/30 font-semibold focus:ring-1 focus:ring-blue-500 w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/60">
+                      {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                        <SelectItem key={k} value={k} className="text-xs cursor-pointer">
+                          <span className="flex items-center gap-2"><span className={`size-2 rounded-full ${v.dot}`} />{v.label}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            {/* Priority */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Priority</label>
-              <Select value={selectedTask.priority} onValueChange={(val) => {
-                onUpdateTaskDetails(selectedTask.id, {
-                  ...selectedTask,
-                  priority: val,
-                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
-                  startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
-                })
-              }}>
-                <SelectTrigger className="h-11 text-sm border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:ring-1 focus:ring-blue-500"><SelectValue /></SelectTrigger>
-                <SelectContent className="rounded-xl border-border/60">
-                  {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
-                    <SelectItem key={k} value={k} className="text-sm cursor-pointer">{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Priority */}
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <label className="col-span-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Priority</label>
+                <div className="col-span-2">
+                  <Select value={selectedTask.priority} onValueChange={(val) => {
+                    onUpdateTaskDetails(selectedTask.id, {
+                      ...selectedTask,
+                      priority: val,
+                      dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+                      startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
+                    })
+                  }}>
+                    <SelectTrigger className="h-9 text-xs border-border/50 rounded-lg bg-card shadow-none hover:bg-muted/30 font-semibold focus:ring-1 focus:ring-blue-500 w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/60">
+                      {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
+                        <SelectItem key={k} value={k} className="text-xs cursor-pointer">{v.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            {/* Assignee */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Assignee</label>
-              <Select value={selectedTask.assigneeId ?? 'unassigned'} onValueChange={(val) => {
-                const assigneeId = val === 'unassigned' ? null : val
-                onUpdateTaskDetails(selectedTask.id, {
-                  ...selectedTask,
-                  assigneeId,
-                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
-                  startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
-                })
-              }}>
-                <SelectTrigger className="h-11 text-sm border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:ring-1 focus:ring-blue-500"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                <SelectContent className="rounded-xl border-border/60">
-                  <SelectItem value="unassigned" className="text-sm cursor-pointer">Unassigned</SelectItem>
-                  {members.map(m => <SelectItem key={m.id} value={m.id} className="text-sm cursor-pointer">{getUserName(m)}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Assignee */}
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <label className="col-span-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Assignee</label>
+                <div className="col-span-2">
+                  <Select value={selectedTask.assigneeId ?? 'unassigned'} onValueChange={(val) => {
+                    const assigneeId = val === 'unassigned' ? null : val
+                    onUpdateTaskDetails(selectedTask.id, {
+                      ...selectedTask,
+                      assigneeId,
+                      dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+                      startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
+                    })
+                  }}>
+                    <SelectTrigger className="h-9 text-xs border-border/50 rounded-lg bg-card shadow-none hover:bg-muted/30 font-semibold focus:ring-1 focus:ring-blue-500 w-full"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/60">
+                      <SelectItem value="unassigned" className="text-xs cursor-pointer">Unassigned</SelectItem>
+                      {members.map(m => <SelectItem key={m.id} value={m.id} className="text-xs cursor-pointer">{getUserName(m)}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            {/* Sprint */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Sprint</label>
-              <Select value={selectedTask.sprintId ?? 'none'} onValueChange={(val) => {
-                const sprintId = val === 'none' ? null : val
-                onUpdateTaskDetails(selectedTask.id, {
-                  ...selectedTask,
-                  sprintId,
-                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
-                  startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
-                })
-              }}>
-                <SelectTrigger className="h-11 text-sm border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:ring-1 focus:ring-blue-500"><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent className="rounded-xl border-border/60">
-                  <SelectItem value="none" className="text-sm cursor-pointer">None</SelectItem>
-                  {sprints.filter(s => s.status !== 'COMPLETED').map(s =>
-                    <SelectItem key={s.id} value={s.id} className="text-sm cursor-pointer">{s.name}</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Sprint */}
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <label className="col-span-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sprint</label>
+                <div className="col-span-2">
+                  <Select value={selectedTask.sprintId ?? 'none'} onValueChange={(val) => {
+                    const sprintId = val === 'none' ? null : val
+                    onUpdateTaskDetails(selectedTask.id, {
+                      ...selectedTask,
+                      sprintId,
+                      dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+                      startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
+                    })
+                  }}>
+                    <SelectTrigger className="h-9 text-xs border-border/50 rounded-lg bg-card shadow-none hover:bg-muted/30 font-semibold focus:ring-1 focus:ring-blue-500 w-full"><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/60">
+                      <SelectItem value="none" className="text-xs cursor-pointer">None</SelectItem>
+                      {sprints.filter(s => s.status !== 'COMPLETED').map(s =>
+                        <SelectItem key={s.id} value={s.id} className="text-xs cursor-pointer">{s.name}</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            {/* Sub-team */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Sub-team</label>
-              <Select value={selectedTask.subTeamId ?? 'none'} onValueChange={(val) => {
-                const subTeamId = val === 'none' ? null : val
-                onUpdateTaskDetails(selectedTask.id, {
-                  ...selectedTask,
-                  subTeamId,
-                  dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
-                  startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
-                })
-              }}>
-                <SelectTrigger className="h-11 text-sm border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:ring-1 focus:ring-blue-500"><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent className="rounded-xl border-border/60">
-                  <SelectItem value="none" className="text-sm cursor-pointer">None</SelectItem>
-                  {teams.map(t => <SelectItem key={t.id} value={t.id} className="text-sm cursor-pointer">{t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Sub-team */}
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <label className="col-span-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sub-team</label>
+                <div className="col-span-2">
+                  <Select value={selectedTask.subTeamId ?? 'none'} onValueChange={(val) => {
+                    const subTeamId = val === 'none' ? null : val
+                    onUpdateTaskDetails(selectedTask.id, {
+                      ...selectedTask,
+                      subTeamId,
+                      dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null,
+                      startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null,
+                    })
+                  }}>
+                    <SelectTrigger className="h-9 text-xs border-border/50 rounded-lg bg-card shadow-none hover:bg-muted/30 font-semibold focus:ring-1 focus:ring-blue-500 w-full"><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/60">
+                      <SelectItem value="none" className="text-xs cursor-pointer">None</SelectItem>
+                      {teams.map(t => <SelectItem key={t.id} value={t.id} className="text-xs cursor-pointer">{t.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            {/* Start Date */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Start Date</label>
-              <input
-                type="date"
-                value={selectedTask.startDate ? new Date(selectedTask.startDate).toISOString().split('T')[0] : ''}
-                onChange={(e) => {
-                  const val = e.target.value
-                  onUpdateTaskDetails(selectedTask.id, {
-                    ...selectedTask,
-                    startDate: val ? new Date(val) : null,
-                    dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null
-                  })
-                }}
-                className="w-full h-11 text-sm border border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 px-4 text-foreground"
-              />
-            </div>
+              {/* Start Date */}
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <label className="col-span-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Start Date</label>
+                <div className="col-span-2">
+                  <input
+                    type="date"
+                    value={selectedTask.startDate ? new Date(selectedTask.startDate).toISOString().split('T')[0] : ''}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      onUpdateTaskDetails(selectedTask.id, {
+                        ...selectedTask,
+                        startDate: val ? new Date(val) : null,
+                        dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate) : null
+                      })
+                    }}
+                    className="w-full h-9 text-xs border border-border/50 rounded-lg bg-card shadow-none hover:bg-muted/30 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 px-3 text-foreground"
+                  />
+                </div>
+              </div>
 
-            {/* Due Date */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Due Date</label>
-              <input
-                type="date"
-                value={selectedTask.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : ''}
-                onChange={(e) => {
-                  const val = e.target.value
-                  onUpdateTaskDetails(selectedTask.id, {
-                    ...selectedTask,
-                    dueDate: val ? new Date(val) : null,
-                    startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null
-                  })
-                }}
-                className="w-full h-11 text-sm border border-border/60 rounded-xl bg-card shadow-sm hover:bg-muted/50 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 px-4 text-foreground"
-              />
+              {/* Due Date */}
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <label className="col-span-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Due Date</label>
+                <div className="col-span-2">
+                  <input
+                    type="date"
+                    value={selectedTask.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : ''}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      onUpdateTaskDetails(selectedTask.id, {
+                        ...selectedTask,
+                        dueDate: val ? new Date(val) : null,
+                        startDate: selectedTask.startDate ? new Date(selectedTask.startDate) : null
+                      })
+                    }}
+                    className="w-full h-9 text-xs border border-border/50 rounded-lg bg-card shadow-none hover:bg-muted/30 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 px-3 text-foreground"
+                  />
+                </div>
+              </div>
             </div>
 
             <Separator className="bg-border/50" />
 
             {/* Timestamps */}
-            <div className="space-y-4 pt-1">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center gap-2 text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">
                 <CalendarDays className="size-4 text-muted-foreground" /> Time Metrics
               </div>
-              <div className="space-y-2.5 text-xs font-semibold text-muted-foreground">
+              <div className="space-y-2 text-xs font-semibold text-muted-foreground">
                 <p className="flex justify-between items-center">
                   <span>Created:</span>
                   <span className="text-foreground">{new Date(selectedTask.createdAt).toLocaleDateString()}</span>

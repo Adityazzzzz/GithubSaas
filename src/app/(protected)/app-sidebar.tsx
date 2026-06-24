@@ -5,10 +5,16 @@ import { Input } from "@/components/ui/input"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import useProject from "@/hooks/use-project"
 import { cn } from "@/lib/utils"
-import { Bot, CreditCard, LayoutDashboard, Plus, Presentation, Archive, Search, FolderTree, BarChart3, GitCommit, GitPullRequest, Shield, BookOpen, Kanban } from "lucide-react"
+import { Bot, CreditCard, LayoutDashboard, Plus, Presentation, Archive, Search, FolderTree, BarChart3, GitCommit, GitPullRequest, Shield, BookOpen, Kanban, ChevronDown, Sparkles, CalendarDays, Users, CloudLightning } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const items = [
     {
@@ -81,11 +87,44 @@ const options=[
     },
 ]
 
+const pmItems = [
+  {
+    title: "Kanban Board",
+    tab: "board",
+    icon: Kanban,
+  },
+  {
+    title: "Calendar",
+    tab: "calendar",
+    icon: CalendarDays,
+  },
+  {
+    title: "Sub-Teams",
+    tab: "teams",
+    icon: Users,
+  },
+  {
+    title: "Automations",
+    tab: "automations",
+    icon: CloudLightning,
+  },
+  {
+    title: "Analytics",
+    tab: "analytics",
+    icon: BarChart3,
+  },
+]
+
 export function AppSidebar(){
     const pathname = usePathname()
+    const router = useRouter()
+    const searchParams = useSearchParams()
     const {open} = useSidebar()
-    const {projects,projectId,setProjectId} = useProject()
+    const {projects,project,projectId,setProjectId} = useProject()
     const [searchTerm, setSearchTerm] = useState('')
+    const projectSlug = project?.name ? encodeURIComponent(project.name) : projectId
+
+    const isPmStudio = pathname.includes('/pmstudio')
 
     const filteredProjects = projects?.filter(project => 
         project.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -98,30 +137,123 @@ export function AppSidebar(){
                         <GitBrainLogo />
                     </SidebarMenuItem>
                 </SidebarMenu>
+
+                {/* Studio Switcher Dropdown */}
+                {open ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-between items-center px-3 py-5 hover:bg-muted/50 rounded-xl border border-border/40 shadow-sm mt-2 mb-2 h-auto">
+                        <div className="flex flex-col items-start leading-none text-left">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Studio</span>
+                          <span className="text-sm font-bold text-foreground mt-1">
+                            {isPmStudio ? "PM Studio" : "AI Studio"}
+                          </span>
+                        </div>
+                        <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[200px] rounded-xl border-border p-1.5 shadow-xl" align="start">
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          if (isPmStudio) {
+                            router.push(`/${projectSlug}/dashboard`)
+                          }
+                        }}
+                        className={cn("flex items-center justify-between p-2.5 rounded-lg cursor-pointer text-sm font-semibold", { "bg-muted text-primary": !isPmStudio })}
+                      >
+                        <span>AI Studio</span>
+                        {!isPmStudio && <div className="size-1.5 rounded-full bg-primary" />}
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          if (!isPmStudio) {
+                            router.push(`/${projectSlug}/pmstudio?tab=board`)
+                          }
+                        }}
+                        className={cn("flex items-center justify-between p-2.5 rounded-lg cursor-pointer text-sm font-semibold mt-1", { "bg-muted text-primary": isPmStudio })}
+                      >
+                        <span>PM Studio</span>
+                        {isPmStudio && <div className="size-1.5 rounded-full bg-primary" />}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="size-10 rounded-lg p-0 flex items-center justify-center mx-auto my-2 shrink-0 border border-border/40 shadow-sm hover:bg-muted/50 font-bold text-xs">
+                        {isPmStudio ? "PM" : "AI"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[180px] rounded-xl border-border p-1.5 shadow-xl" align="start" side="right">
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          if (isPmStudio) {
+                            router.push(`/${projectSlug}/dashboard`)
+                          }
+                        }}
+                        className={cn("flex items-center justify-between p-2.5 rounded-lg cursor-pointer text-sm font-semibold", { "bg-muted text-primary": !isPmStudio })}
+                      >
+                        <span>AI Studio</span>
+                        {!isPmStudio && <div className="size-1.5 rounded-full bg-primary" />}
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          if (!isPmStudio) {
+                            router.push(`/${projectSlug}/pmstudio?tab=board`)
+                          }
+                        }}
+                        className={cn("flex items-center justify-between p-2.5 rounded-lg cursor-pointer text-sm font-semibold mt-1", { "bg-muted text-primary": isPmStudio })}
+                      >
+                        <span>PM Studio</span>
+                        {isPmStudio && <div className="size-1.5 rounded-full bg-primary" />}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
             </SidebarHeader>
 
             <SidebarContent>
                 <SidebarGroup>
                     <SidebarGroupLabel>
-                        Application
+                        {isPmStudio ? "PM Studio Menu" : "AI Studio Menu"}
                     </SidebarGroupLabel>
                     
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {items.map(i=>{
-                                const href = i.title === "PM Studio" ? `/${projectId}/pmstudio` : i.url
+                            {isPmStudio ? (
+                              pmItems.map(i => {
+                                const href = `/${projectSlug}/pmstudio?tab=${i.tab}`
+                                const currentTab = searchParams.get('tab') || 'board'
+                                const isActive = currentTab === i.tab
+                                return (
+                                  <SidebarMenuItem key={i.title}>
+                                    <SidebarMenuButton asChild>
+                                      <Link href={href} className={cn({'bg-primary! text-white!': isActive}, 'list-none')}>
+                                        <i.icon />
+                                        <span>{i.title}</span>
+                                      </Link>
+                                    </SidebarMenuButton>
+                                  </SidebarMenuItem>
+                                )
+                              })
+                            ) : (
+                              items.map(i => {
+                                const href = i.title === "PM Studio" ? `/${projectSlug}/pmstudio?tab=board` : `/${projectSlug}${i.url}`
                                 const isActive = pathname === href || (i.title === "PM Studio" && pathname.includes('/pmstudio'))
                                 return (
-                                    <SidebarMenuItem key={i.title}>
-                                        <SidebarMenuButton asChild>
-                                            <Link href={href} className={cn({'bg-primary! text-white!': isActive},'list-none')}>
-                                                <i.icon/>
-                                                <span>{i.title}</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
+                                  <SidebarMenuItem key={i.title}>
+                                    <SidebarMenuButton asChild>
+                                      <Link href={href} className={cn({'bg-primary! text-white!': isActive}, 'list-none')}>
+                                        <i.icon />
+                                        <span>{i.title}</span>
+                                      </Link>
+                                    </SidebarMenuButton>
+                                  </SidebarMenuItem>
                                 )
-                            })}
+                              })
+                            )}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
@@ -151,7 +283,18 @@ export function AppSidebar(){
                                     <SidebarMenuItem key={project.name}>
                                         <SidebarMenuButton asChild>
                                             <div 
-                                                onClick={() => setProjectId(project.id)} 
+                                                onClick={() => {
+                                                  setProjectId(project.id)
+                                                  const cleanOldSlug = pathname.split('/')[1]
+                                                  const isProjectRoute = projects?.some(p => encodeURIComponent(p.name) === cleanOldSlug || p.id === cleanOldSlug)
+                                                  const newSlug = encodeURIComponent(project.name)
+                                                  if (isProjectRoute && cleanOldSlug) {
+                                                    const newPath = pathname.replace(`/${cleanOldSlug}`, `/${newSlug}`)
+                                                    router.push(newPath)
+                                                  } else {
+                                                    router.push(`/${newSlug}/dashboard`)
+                                                  }
+                                                }} 
                                                 className="cursor-pointer flex items-center gap-2"
                                             >
                                                 <div className={cn(

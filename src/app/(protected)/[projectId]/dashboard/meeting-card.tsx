@@ -84,7 +84,8 @@ const MeetingCard = () => {
                     {
                         onSuccess: (meeting) => {
                             toast.success("Meeting uploaded successfully")
-                            router.push("/meetings")
+                            const projectSlug = project?.name ? encodeURIComponent(project.name) : projectId
+                            router.push(`/${projectSlug}/meetings`)
                             processMeeting.mutateAsync({meetingUrl:fileUrl.toString(),  meetingId:meeting.id, projectId:project.id})
                         },
                         onError: () => {

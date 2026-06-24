@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/trpc/react'
+import useProject from '@/hooks/use-project'
 import { NoProjectPlaceholder } from '@/components/no-project-placeholder'
 import { toast } from 'sonner'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -19,8 +20,11 @@ import { CreateTaskDialog } from './_components/CreateTaskDialog'
 import { CreateSprintDialog } from './_components/CreateSprintDialog'
 
 export default function DynamicPmStudioPage() {
-  const params = useParams()
-  const projectId = params.projectId as string
+  const { project, projectId } = useProject()
+  const projectSlug = project?.name ? encodeURIComponent(project.name) : projectId
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const tab = searchParams.get('tab') || 'board'
 
   // Board Filter State
   const [filterTeam, setFilterTeam] = useState<string>('ALL')
@@ -40,13 +44,6 @@ export default function DynamicPmStudioPage() {
   const utils = api.useUtils()
 
   /* ─── Queries ─────────────────────────────────────────────────────────── */
-  const { data: project } = api.project.getProjects.useQuery(
-    undefined, 
-    { 
-      select: (projects) => projects.find(p => p.id === projectId),
-      enabled: !!projectId 
-    }
-  )
 
   const { data: tasks = [], isLoading: tasksLoading } = api.pm.getTasks.useQuery(
     { projectId }, { enabled: !!projectId }
@@ -314,8 +311,8 @@ export default function DynamicPmStudioPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="board" className="w-full flex-1 flex flex-col">
-        <TabsList className="w-fit bg-muted p-1 rounded-xl mb-4 border border-border">
+      <Tabs value={tab} onValueChange={(val) => router.push(`/${projectSlug}/pmstudio?tab=${val}`)} className="w-full flex-1 flex flex-col">
+        <TabsList className="w-fit bg-muted p-1 rounded-xl mb-4 border border-border md:hidden">
           <TabsTrigger value="board" className="text-sm font-semibold rounded-lg px-4 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Board</TabsTrigger>
           <TabsTrigger value="calendar" className="text-sm font-semibold rounded-lg px-4 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Calendar</TabsTrigger>
           <TabsTrigger value="teams" className="text-sm font-semibold rounded-lg px-4 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Teams</TabsTrigger>
@@ -341,6 +338,7 @@ export default function DynamicPmStudioPage() {
 
         <TabsContent value="calendar" className="flex-1 min-h-0 border-t border-border mt-0 data-[state=active]:flex data-[state=active]:flex-col">
           <CalendarView 
+            projectId={projectId}
             tasks={tasks}
             teams={teams}
             members={members}

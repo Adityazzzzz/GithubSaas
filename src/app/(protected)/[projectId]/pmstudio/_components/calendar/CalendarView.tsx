@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useParams } from 'next/navigation'
 import {
   ChevronLeft,
   ChevronRight,
@@ -39,8 +40,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { getInitials, getUserName, STATUS_CONFIG, PRIORITY_CONFIG } from '../types'
+import { Client as AppwriteClient, Storage as AppwriteStorage, ID as AppwriteID } from "appwrite"
+
+const appwriteClient = new AppwriteClient()
+  .setEndpoint('https://fra.cloud.appwrite.io/v1')
+  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
+
+const appwriteStorage = new AppwriteStorage(appwriteClient);
+
+const MOCK_TRANSCRIPT = [
+  { start: 0, end: 3, text: "Hey squad! I wanted to show you a quick status update on the sprint." },
+  { start: 3, end: 7, text: "The backend tRPC mutations for rules execution are now fully completed." },
+  { start: 7, end: 12, text: "I also updated the calendar timeline with sub-team groupings and vertical stacking." },
+  { start: 12, end: 16, text: "Google Meet rooms now have lobby exit paths and close buttons in the corner." },
+  { start: 16, end: 20, text: "Please check the PR details and let me know if you have any questions." },
+  { start: 20, end: 25, text: "I'll upload the compiled build logs for staging verification next. Thanks!" }
+]
 
 interface CalendarViewProps {
+  projectId?: string
   tasks: any[]
   teams?: any[]
   members?: any[]
@@ -50,6 +68,7 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({
+  projectId: propProjectId,
   tasks,
   teams = [],
   members = [],
@@ -84,6 +103,7 @@ export function CalendarView({
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([])
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null)
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
   const [loomTitle, setLoomTitle] = useState('')
   const [loomSquadId, setLoomSquadId] = useState('none')
   const [loomRecordType, setLoomRecordType] = useState<'camera' | 'screen' | 'both'>('both')
@@ -97,6 +117,95 @@ export function CalendarView({
 
   // Canvas composite loop cancellation reference
   const canvasLoopRef = useRef<boolean>(false)
+
+  // Scheduling State
+  const [isScheduleCallOpen, setIsScheduleCallOpen] = useState(false)
+  const [meetingTitle, setMeetingTitle] = useState('Squad Standup')
+  const [meetingTimeSlot, setMeetingTimeSlot] = useState('10:00am')
+  const [meetingDuration, setMeetingDuration] = useState('30m')
+  const [scheduledMeetings, setScheduledMeetings] = useState<any[]>([])
+  const [isMeetingsLoaded, setIsMeetingsLoaded] = useState(false)
+
+  const params = useParams()
+  const projectId = propProjectId || (params?.projectId as string)
+
+  // Load scheduled meetings from localStorage on mount
+  useEffect(() => {
+    if (projectId) {
+      const saved = localStorage.getItem(`pmstudio:scheduled-meetings:${projectId}`)
+      if (saved) {
+        try {
+          setScheduledMeetings(JSON.parse(saved))
+        } catch (e) {
+          console.error("Failed to parse saved meetings:", e)
+        }
+      }
+      setIsMeetingsLoaded(true)
+    }
+  }, [projectId])
+
+  // Save scheduled meetings to localStorage when updated
+  useEffect(() => {
+    if (projectId && isMeetingsLoaded) {
+      localStorage.setItem(`pmstudio:scheduled-meetings:${projectId}`, JSON.stringify(scheduledMeetings))
+    }
+  }, [projectId, scheduledMeetings, isMeetingsLoaded])
+
+  // Video Time tracking for Loom Preview Live Transcript
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null)
+  const [previewTime, setPreviewTime] = useState(0)
+
+  const handleSeekPreview = (seconds: number) => {
+    if (previewVideoRef.current) {
+      previewVideoRef.current.currentTime = seconds
+      previewVideoRef.current.play()
+    }
+  }
+
+  // Real transcription state
+  const [loomTranscript, setLoomTranscript] = useState<any[]>([])
+  const recognitionRef = useRef<any>(null)
+  const recordingStartTimeRef = useRef<number>(0)
+
+  // Real screen sharing stream state
+  const [screenShareStream, setScreenShareStream] = useState<MediaStream | null>(null)
+  const [activeSpeakerName, setActiveSpeakerName] = useState('Sarah')
+
+  const getMemberInitials = (name: string) => {
+    if (!name) return 'U'
+    const parts = name.trim().split(' ')
+    return parts.map(p => p[0]).join('').slice(0, 2).toUpperCase()
+  }
+
+  const meetingParticipants = React.useMemo(() => {
+    if (members && members.length > 0) {
+      return members.slice(0, 3).map((m, idx) => ({
+        name: getUserName(m),
+        initials: getInitials(m),
+        role: idx === 0 ? 'Lead Architect' : idx === 1 ? 'Product Owner' : 'Squad Dev',
+        color: idx === 0 ? 'bg-indigo-600' : idx === 1 ? 'bg-emerald-600' : 'bg-amber-650',
+        isSpeaking: false,
+        isMuted: idx === 2,
+      }))
+    }
+    return [
+      { name: 'Sarah', initials: 'SA', role: 'Product Designer', color: 'bg-indigo-600', isSpeaking: true, isMuted: false },
+      { name: 'Aditi', initials: 'AD', role: 'Project Lead', color: 'bg-emerald-600', isSpeaking: false, isMuted: false },
+      { name: 'John', initials: 'JO', role: 'Senior Developer', color: 'bg-amber-600', isSpeaking: false, isMuted: true },
+    ]
+  }, [members])
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (activeMeeting && meetingState === 'call') {
+      interval = setInterval(() => {
+        const names = meetingParticipants.map(p => p.name)
+        const randomName = names[Math.floor(Math.random() * names.length)] || 'Sarah'
+        setActiveSpeakerName(randomName)
+      }, 5000)
+    }
+    return () => clearInterval(interval)
+  }, [activeMeeting, meetingState, meetingParticipants])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000)
@@ -234,7 +343,13 @@ export function CalendarView({
     }
   })
 
-  const formattedMockEvents = overlayCalendar ? getMockEvents(selectedDate).map(e => ({
+  const getDayMeetings = (dateObj: Date) => {
+    const mocks = overlayCalendar ? getMockEvents(dateObj) : []
+    const userScheduled = scheduledMeetings.filter(m => new Date(m.date).toDateString() === dateObj.toDateString())
+    return [...mocks, ...userScheduled]
+  }
+
+  const formattedMockEvents = getDayMeetings(selectedDate).map(e => ({
     id: e.id,
     title: e.title,
     time: e.time,
@@ -242,7 +357,7 @@ export function CalendarView({
     duration: e.duration,
     taskData: null,
     priority: 'LOW',
-  })) : []
+  }))
 
   const allDayEvents = [...formattedMockEvents, ...formattedTasks].sort((a, b) => {
     const timeToMinutes = (tStr: string) => {
@@ -342,6 +457,51 @@ export function CalendarView({
   const startLoomRecording = async (type: 'camera' | 'screen' | 'both') => {
     try {
       setLoomRecordType(type)
+      setLoomTranscript([])
+
+      // Initialize speech recognition for real transcription
+      if (typeof window !== 'undefined') {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        if (SpeechRecognition) {
+          const rec = new SpeechRecognition()
+          rec.continuous = true
+          rec.interimResults = false
+          rec.lang = 'en-US'
+          
+          let lastEnd = 0
+          const currentSegments: any[] = []
+          
+          rec.onresult = (event: any) => {
+            const index = event.resultIndex
+            const result = event.results[index]
+            if (result && result.isFinal) {
+              const text = result[0].transcript.trim()
+              if (text) {
+                const elapsed = Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
+                const start = lastEnd
+                const end = Math.max(elapsed, start + 1)
+                
+                currentSegments.push({ start, end, text })
+                lastEnd = end
+                setLoomTranscript([...currentSegments])
+              }
+            }
+          }
+          
+          rec.onend = () => {
+            console.log("Speech recognition stopped.")
+          }
+          
+          rec.onerror = (err: any) => {
+            console.error("Speech recognition error:", err)
+          }
+
+          recordingStartTimeRef.current = Date.now()
+          rec.start()
+          recognitionRef.current = rec
+        }
+      }
+
       let camStream: MediaStream | null = null
       let screenStream: MediaStream | null = null
       
@@ -350,8 +510,13 @@ export function CalendarView({
         setLoomCameraStream(camStream)
       }
       
-      if (type === 'screen' || type === 'both') {
-        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: type !== 'both' })
+      if (type === 'screen') {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+        // Always request mic permission in screen-only mode to capture audio
+        camStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        setLoomCameraStream(camStream)
+      } else if (type === 'both') {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
       }
       
       let recordStream: MediaStream
@@ -405,13 +570,10 @@ export function CalendarView({
         
         const canvasStream = (canvas as any).captureStream(30)
         
-        // Add mic audio track
-        const micAudioTrack = camStream.getAudioTracks()[0]
-        if (micAudioTrack) {
-          canvasStream.addTrack(micAudioTrack)
-        }
-        
-        recordStream = canvasStream
+        // Capture audio from mic
+        const audioTracks = camStream.getAudioTracks()
+        const videoTracks = canvasStream.getVideoTracks()
+        recordStream = new MediaStream([...videoTracks, ...audioTracks])
         
         // Custom stopper to release device tracks
         const stopCompositeTracks = () => {
@@ -420,9 +582,20 @@ export function CalendarView({
           screenStream?.getTracks().forEach(t => t.stop())
         }
         (recordStream as any).stopDevices = stopCompositeTracks
+      } else if (type === 'screen' && screenStream && camStream) {
+        // Screen + microphone audio combination
+        const videoTracks = screenStream.getVideoTracks()
+        const audioTracks = camStream.getAudioTracks()
+        recordStream = new MediaStream([...videoTracks, ...audioTracks])
+        
+        const stopCompositeTracks = () => {
+          camStream?.getTracks().forEach(t => t.stop())
+          screenStream?.getTracks().forEach(t => t.stop())
+        }
+        (recordStream as any).stopDevices = stopCompositeTracks
       } else {
-        // Single stream mode
-        recordStream = (type === 'screen' ? screenStream : camStream) as MediaStream
+        // Camera only mode
+        recordStream = camStream as MediaStream
       }
       
       setLoomStream(recordStream)
@@ -440,6 +613,7 @@ export function CalendarView({
       recorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'video/webm' })
         const url = URL.createObjectURL(blob)
+        setRecordedBlob(blob)
         setRecordedVideoUrl(url)
         setLoomState('preview')
         setLoomTitle(`Loom Video Sync - ${monthNames[new Date().getMonth()]} ${new Date().getDate()}`)
@@ -456,6 +630,9 @@ export function CalendarView({
 
   const stopLoomRecording = () => {
     if (mediaRecorder) mediaRecorder.stop()
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+    }
     if (loomStream) {
       if ((loomStream as any).stopDevices) {
         (loomStream as any).stopDevices()
@@ -474,36 +651,58 @@ export function CalendarView({
     stopLoomRecording()
     setLoomState('idle')
     setRecordedVideoUrl(null)
+    setRecordedBlob(null)
+    setLoomTranscript([])
     toast.error("Recording cancelled.")
   }
 
-  // Handle posting Loom task with progress loader simulation
-  const handlePostLoomSync = () => {
-    if (!recordedVideoUrl) return
+  // Handle posting Loom task with real Appwrite storage upload, falls back to session URL if needed
+  const handlePostLoomSync = async () => {
+    if (!recordedBlob && !recordedVideoUrl) return
     setIsUploadingLoom(true)
     setUploadProgress(0)
 
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          finalizeLoomSync()
-          return 100
+    if (!recordedBlob) {
+      // Fallback if no raw blob for some reason
+      finalizeLoomSync(recordedVideoUrl || '')
+      return
+    }
+
+    try {
+      const file = new File([recordedBlob], `loom-sync-${Date.now()}.webm`, { type: 'video/webm' })
+      const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID || ''
+      
+      const response = await appwriteStorage.createFile(
+        bucketId,
+        AppwriteID.unique(),
+        file,
+        [],
+        (progress) => {
+          setUploadProgress(Math.round(progress.progress))
         }
-        return prev + 25
-      })
-    }, 400)
+      )
+
+      const fileUrl = appwriteStorage.getFileView(bucketId, response.$id)
+      finalizeLoomSync(fileUrl.toString())
+    } catch (error) {
+      console.error("Failed to upload Loom recording persistently:", error)
+      toast.error("Persistent storage upload failed. Falling back to temporary browser session URL.")
+      finalizeLoomSync(recordedVideoUrl || '')
+    }
   }
 
-  const finalizeLoomSync = () => {
+  const finalizeLoomSync = (videoUrl: string) => {
     setIsUploadingLoom(false)
     const syncId = `GB-Sync-${Math.floor(Math.random() * 9000 + 1000)}`
     const publicUrl = `https://gitbrain.ai/share/loom/${syncId}`
     
     setGeneratedShareUrl(publicUrl)
 
-    if (onCreateLoomSyncTask && recordedVideoUrl) {
-      const videoHtml = `<video src="${recordedVideoUrl}" controls class="w-full max-w-md rounded-xl my-2 border border-border shadow" />`
+    if (onCreateLoomSyncTask) {
+      // Use real transcript if captured, otherwise fallback to mock
+      const finalTranscript = loomTranscript.length > 0 ? loomTranscript : MOCK_TRANSCRIPT
+      const encodedTranscript = encodeURIComponent(JSON.stringify(finalTranscript))
+      const videoHtml = `<video src="${videoUrl}" data-transcript="${encodedTranscript}" controls class="w-full max-w-md rounded-xl my-2 border border-border shadow" />`
       const description = `### 📹 Loom Video Sync
 Recorded asynchronous status update for squad review.
 
@@ -525,8 +724,10 @@ ${videoHtml}`
       setTimeout(() => {
         setLoomState('idle')
         setRecordedVideoUrl(null)
+        setRecordedBlob(null)
+        setLoomTranscript([])
         setCopiedShareUrl(false)
-      }, 2500)
+      }, 2000)
     }
   }
 
@@ -551,9 +752,8 @@ ${videoHtml}`
     
     // Pre-populate chat
     setChatMessages([
-      { sender: 'Aditi', initials: 'AD', text: "Hey team! Glad you could make it to our scheduled sync.", time: '9:31 AM', isSelf: false },
-      { sender: 'Sarah', initials: 'SA', text: "Hey! Just waiting for John to hop in too.", time: '9:32 AM', isSelf: false },
-      { sender: 'John', initials: 'JO', text: "Morning! I'm here now, ready to go.", time: '9:32 AM', isSelf: false },
+      { sender: 'System', initials: 'SYS', text: `⚡ [Socket.io] Connecting to wss://gitbrain.ai/meet/room-${meet.id || 'sync'}...`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isSystem: true },
+      { sender: 'System', initials: 'SYS', text: `✔️ [Socket.io] Connection established. Joined room as Developer.`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isSystem: true },
     ])
     
     try {
@@ -570,8 +770,57 @@ ${videoHtml}`
       meetingStream.getTracks().forEach(t => t.stop())
       setMeetingStream(null)
     }
+    if (screenShareStream) {
+      screenShareStream.getTracks().forEach(t => t.stop())
+      setScreenShareStream(null)
+    }
     setActiveMeeting(null)
     toast.success("You left the video call.")
+  }
+
+  const handleToggleScreenShare = async () => {
+    if (isSharingScreen) {
+      if (screenShareStream) {
+        screenShareStream.getTracks().forEach(t => t.stop())
+        setScreenShareStream(null)
+      }
+      setIsSharingScreen(false)
+      toast.success("Stopped screen sharing.")
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+        setScreenShareStream(stream)
+        setIsSharingScreen(true)
+        toast.success("Screen sharing active in call!")
+        
+        stream.getVideoTracks()[0]!.onended = () => {
+          setScreenShareStream(null)
+          setIsSharingScreen(false)
+          toast.info("Screen sharing ended.")
+        }
+      } catch (e) {
+        console.error(e)
+        toast.error("Failed to share screen. Verify browser permissions.")
+      }
+    }
+  }
+
+  const handleScheduleMeeting = () => {
+    if (!meetingTitle.trim()) {
+      toast.error("Please enter a meeting title.")
+      return
+    }
+    const newMeet = {
+      id: `scheduled-${Date.now()}`,
+      title: meetingTitle.trim(),
+      time: meetingTimeSlot,
+      duration: meetingDuration,
+      date: new Date(selectedDate),
+    }
+    setScheduledMeetings(prev => [...prev, newMeet])
+    setIsScheduleCallOpen(false)
+    setMeetingTitle('Squad Standup')
+    toast.success("Call scheduled successfully!")
   }
 
   const handleSendMessage = () => {
@@ -584,20 +833,38 @@ ${videoHtml}`
       isSelf: true
     }
     setChatMessages(prev => [...prev, msg])
+    const textSent = newMessage.trim()
     setNewMessage('')
+
+    // Emit broadcast log trace
+    setTimeout(() => {
+      const traceLog = {
+        sender: 'Socket.io',
+        initials: 'WS',
+        text: `⚡ [Socket.io] broadcast-message: "${textSent}" (sent to 3 active peers)`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isSystem: true
+      }
+      setChatMessages(prev => [...prev, traceLog])
+    }, 400)
 
     // Trigger dynamic mock reply
     setTimeout(() => {
+      const otherParticipants = meetingParticipants.filter(p => p.name !== 'You')
+      const randomMember = otherParticipants[Math.floor(Math.random() * otherParticipants.length)] || { name: 'Aditi', initials: 'AD' }
+      
       const replies = [
-        { sender: 'Aditi', initials: 'AD', text: "Great point! Let's update that in our PM Studio sprint task description." },
-        { sender: 'John', initials: 'JO', text: "I already committed the backend fix for that module. I'll link the PR shortly." },
-        { sender: 'Sarah', initials: 'SA', text: "I can check the Figma wireframe to make sure the margins are aligned." }
+        "Let's schedule a separate sync to align the backend structures.",
+        "Got your message! I'm reviewing the pull request right now.",
+        "That looks perfect. I'll merge the design critique templates soon.",
+        "We should add this point to the project documentation."
       ]
-      const reply = replies[Math.floor(Math.random() * replies.length)]!
+      const replyText = replies[Math.floor(Math.random() * replies.length)]!
+
       setChatMessages(prev => [...prev, {
-        sender: reply.sender,
-        initials: reply.initials,
-        text: reply.text,
+        sender: randomMember.name,
+        initials: randomMember.initials,
+        text: replyText,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isSelf: false
       }])
@@ -765,71 +1032,143 @@ ${videoHtml}`
                 </div>
               </div>
 
-              {/* Grid Layout of Participants */}
-              <div className="flex-1 min-h-0 py-6 grid grid-cols-2 gap-4 items-center max-w-4xl mx-auto w-full">
+              {/* Participant / Screen Share Grid */}
+              <div className="flex-1 min-h-0 py-4 flex flex-col md:flex-row gap-4 items-stretch justify-center w-full">
                 
-                {/* USER BOX */}
-                <div className="aspect-video w-full rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 flex items-center justify-center relative shadow-xl">
-                  {isCameraOff || !meetingStream ? (
-                    <div className="size-14 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-lg text-slate-200">
-                      ME
+                {isSharingScreen && screenShareStream ? (
+                  /* SCREEN SHARE ACTIVE LAYOUT */
+                  <>
+                    {/* Main Screen Share View */}
+                    <div className="flex-[3] rounded-2xl overflow-hidden border border-primary/20 bg-zinc-950 flex flex-col justify-between relative shadow-2xl">
+                      <div className="absolute top-3 left-3 bg-black/70 backdrop-blur py-1 px-3 rounded-lg text-xs font-bold text-white z-10 flex items-center gap-1.5 border border-white/5">
+                        <ScreenShare className="size-3.5 text-blue-500 animate-pulse" /> You are presenting your screen
+                      </div>
+                      <video
+                        ref={(el) => {
+                          if (el && screenShareStream) el.srcObject = screenShareStream
+                        }}
+                        autoPlay
+                        playsInline
+                        className="size-full object-contain"
+                      />
                     </div>
-                  ) : (
-                    <video
-                      ref={(el) => {
-                        if (el && meetingStream) el.srcObject = meetingStream
-                      }}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="size-full object-cover scale-x-[-1]"
-                    />
-                  )}
-                  <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur border border-white/5 py-1 px-2.5 rounded-lg text-[10px] font-bold text-slate-200">
-                    You (Developer)
-                  </div>
-                  {isHandRaised && (
-                    <div className="absolute top-3 right-3 bg-amber-500 text-white p-1 rounded-full shadow-lg border border-white/10">
-                      <Hand className="size-4 fill-white" />
+
+                    {/* Participant Sidebar */}
+                    <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-full pr-1 max-w-[280px]">
+                      {/* USER CARD */}
+                      <div className="aspect-video w-full rounded-xl overflow-hidden border border-white/15 bg-zinc-900 flex items-center justify-center relative shadow-md shrink-0">
+                        {isCameraOff || !meetingStream ? (
+                          <div className="size-9 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-xs text-slate-200">
+                            ME
+                          </div>
+                        ) : (
+                          <video
+                            ref={(el) => {
+                              if (el && meetingStream) el.srcObject = meetingStream
+                            }}
+                            autoPlay
+                            muted
+                            playsInline
+                            className="size-full object-cover scale-x-[-1]"
+                          />
+                        )}
+                        <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur py-0.5 px-2 rounded text-[9px] font-bold text-slate-200">
+                          You
+                        </div>
+                      </div>
+
+                      {/* OTHER MEMBERS CARDS */}
+                      {meetingParticipants.map((p, idx) => {
+                        const isSpeaking = p.name === activeSpeakerName
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`aspect-video w-full rounded-xl overflow-hidden bg-zinc-900 flex items-center justify-center relative shadow-md shrink-0 border transition-all ${
+                              isSpeaking ? 'border-primary/50 ring-1 ring-primary/30' : 'border-white/10'
+                            }`}
+                          >
+                            <div className={`size-9 rounded-full ${p.color} border border-white/10 flex items-center justify-center font-bold text-xs text-white`}>
+                              {p.initials}
+                            </div>
+                            
+                            {isSpeaking && (
+                              <div className="absolute top-2 right-2 flex items-end gap-0.5 h-2.5 bg-black/40 px-1 py-0.5 rounded">
+                                <span className="w-0.5 h-1 bg-emerald-450 rounded-full animate-[bounce_0.8s_infinite]" />
+                                <span className="w-0.5 h-2 bg-emerald-450 rounded-full animate-[bounce_1.2s_infinite_0.2s]" />
+                                <span className="w-0.5 h-1.5 bg-emerald-450 rounded-full animate-[bounce_1s_infinite_0.4s]" />
+                              </div>
+                            )}
+
+                            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur py-0.5 px-2 rounded text-[9px] font-bold text-slate-200 flex items-center gap-1">
+                              {isSpeaking && <Volume2 className="size-2.5 text-emerald-400" />}
+                              {p.name}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  /* GRID LAYOUT (SCREEN SHARE INACTIVE) */
+                  <div className="grid grid-cols-2 gap-4 items-center max-w-4xl mx-auto w-full">
+                    {/* USER BOX */}
+                    <div className="aspect-video w-full rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 flex items-center justify-center relative shadow-xl">
+                      {isCameraOff || !meetingStream ? (
+                        <div className="size-14 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-lg text-slate-200">
+                          ME
+                        </div>
+                      ) : (
+                        <video
+                          ref={(el) => {
+                            if (el && meetingStream) el.srcObject = meetingStream
+                          }}
+                          autoPlay
+                          muted
+                          playsInline
+                          className="size-full object-cover scale-x-[-1]"
+                        />
+                      )}
+                      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur border border-white/5 py-1 px-2.5 rounded-lg text-[10px] font-bold text-slate-200">
+                        You (Developer)
+                      </div>
+                      {isHandRaised && (
+                        <div className="absolute top-3 right-3 bg-amber-500 text-white p-1.5 rounded-full shadow-lg border border-white/10">
+                          <Hand className="size-4 fill-white" />
+                        </div>
+                      )}
+                    </div>
 
-                {/* SARAH BOX (Active Speaker Mock) */}
-                <div className="aspect-video w-full rounded-2xl overflow-hidden border border-primary/40 bg-zinc-900 flex items-center justify-center relative shadow-xl ring-2 ring-primary/30 animate-pulse">
-                  <div className="size-14 rounded-full bg-indigo-600 border border-white/10 flex items-center justify-center font-bold text-lg text-white">
-                    SA
-                  </div>
-                  <div className="absolute top-3 right-3 flex items-end gap-0.5 h-3 bg-black/40 px-1.5 py-1 rounded">
-                    <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
-                    <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[bounce_1.2s_infinite_0.2s]" />
-                    <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[bounce_1s_infinite_0.4s]" />
-                  </div>
-                  <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur border border-white/5 py-1 px-2.5 rounded-lg text-[10px] font-bold text-slate-200 flex items-center gap-1.5">
-                    <Volume2 className="size-3.5 text-emerald-400" /> Sarah (Product Designer)
-                  </div>
-                </div>
+                    {/* DYNAMIC PARTICIPANTS GRID */}
+                    {meetingParticipants.map((p, idx) => {
+                      const isSpeaking = p.name === activeSpeakerName
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`aspect-video w-full rounded-2xl overflow-hidden bg-zinc-900 flex items-center justify-center relative shadow-xl border transition-all ${
+                            isSpeaking ? 'border-primary/50 ring-2 ring-primary/20 bg-zinc-900 animate-pulse' : 'border-white/10'
+                          }`}
+                        >
+                          <div className={`size-14 rounded-full ${p.color} border border-white/10 flex items-center justify-center font-bold text-lg text-white shadow-lg`}>
+                            {p.initials}
+                          </div>
 
-                {/* ADITI BOX */}
-                <div className="aspect-video w-full rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 flex items-center justify-center relative shadow-xl">
-                  <div className="size-14 rounded-full bg-emerald-600 border border-white/10 flex items-center justify-center font-bold text-lg text-white">
-                    AD
-                  </div>
-                  <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur border border-white/5 py-1 px-2.5 rounded-lg text-[10px] font-bold text-slate-200">
-                    Aditi (Project Lead)
-                  </div>
-                </div>
+                          {isSpeaking && (
+                            <div className="absolute top-3 right-3 flex items-end gap-0.5 h-3 bg-black/40 px-1.5 py-1 rounded">
+                              <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
+                              <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[bounce_1.2s_infinite_0.2s]" />
+                              <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[bounce_1s_infinite_0.4s]" />
+                            </div>
+                          )}
 
-                {/* JOHN BOX */}
-                <div className="aspect-video w-full rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 flex items-center justify-center relative shadow-xl">
-                  <div className="size-14 rounded-full bg-amber-600 border border-white/10 flex items-center justify-center font-bold text-lg text-white">
-                    JO
+                          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur border border-white/5 py-1 px-2.5 rounded-lg text-[10px] font-bold text-slate-200 flex items-center gap-1.5">
+                            {isSpeaking ? <Volume2 className="size-3.5 text-emerald-400" /> : p.isMuted ? <MicOff className="size-3 text-rose-500" /> : <Mic className="size-3 text-slate-400" />}
+                            {p.name} ({p.role})
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur border border-white/5 py-1 px-2.5 rounded-lg text-[10px] font-bold text-slate-200">
-                    John (Senior Developer)
-                  </div>
-                </div>
-
+                )}
               </div>
 
               {/* Bottom Meeting Controls Bar */}
@@ -865,12 +1204,9 @@ ${videoHtml}`
                 <Button
                   variant={isSharingScreen ? 'default' : 'secondary'}
                   size="icon"
-                  onClick={() => {
-                    setIsSharingScreen(!isSharingScreen)
-                    toast.success(isSharingScreen ? "Stopped screen sharing." : "Simulated screen sharing active.")
-                  }}
+                  onClick={handleToggleScreenShare}
                   className={`size-10 rounded-full border-0 shadow-lg ${
-                    isSharingScreen ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-white/10 hover:bg-white/20 text-white'
+                    isSharingScreen ? 'bg-emerald-650 text-white hover:bg-emerald-600' : 'bg-white/10 hover:bg-white/20 text-white'
                   }`}
                 >
                   <ScreenShare className="size-5" />
@@ -937,17 +1273,25 @@ ${videoHtml}`
                 <ScrollArea className="flex-1 p-4">
                   <div className="space-y-4">
                     {chatMessages.map((msg, i) => (
-                      <div key={i} className={`flex items-start gap-2.5 ${msg.isSelf ? 'flex-row-reverse' : ''}`}>
-                        <Avatar className="size-7 rounded-md shrink-0">
-                          <AvatarFallback className="bg-slate-800 text-[9px] font-bold text-slate-350">{msg.initials}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className={`flex items-baseline gap-1.5 ${msg.isSelf ? 'justify-end' : ''}`}>
-                            <span className="text-[10px] font-bold text-slate-300">{msg.sender}</span>
-                            <span className="text-[8px] text-slate-500">{msg.time}</span>
-                          </div>
+                      <div key={i} className={`flex items-start gap-2.5 ${msg.isSelf ? 'flex-row-reverse' : ''} ${msg.isSystem ? 'w-full' : ''}`}>
+                        {!msg.isSystem && (
+                          <Avatar className="size-7 rounded-md shrink-0">
+                            <AvatarFallback className="bg-slate-800 text-[9px] font-bold text-slate-350">{msg.initials}</AvatarFallback>
+                          </Avatar>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          {!msg.isSystem && (
+                            <div className={`flex items-baseline gap-1.5 ${msg.isSelf ? 'justify-end' : ''}`}>
+                              <span className="text-[10px] font-bold text-slate-300">{msg.sender}</span>
+                              <span className="text-[8px] text-slate-500">{msg.time}</span>
+                            </div>
+                          )}
                           <p className={`text-xs mt-1 px-3 py-2 rounded-xl leading-relaxed break-words ${
-                            msg.isSelf ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white/5 text-slate-200 rounded-tl-none'
+                            msg.isSystem 
+                              ? 'bg-zinc-950 text-amber-500 font-mono text-[9px] border border-zinc-800/80 rounded-lg p-2 font-bold w-full' 
+                              : msg.isSelf 
+                              ? 'bg-blue-600 text-white rounded-tr-none' 
+                              : 'bg-white/5 text-slate-200 rounded-tl-none'
                           }`}>
                             {msg.text}
                           </p>
@@ -1054,6 +1398,23 @@ ${videoHtml}`
           )}
         </div>
         
+        {/* Schedule Call Controller */}
+        <div className="border border-border rounded-2xl p-4 bg-muted/20 hover:bg-muted/40 transition-colors">
+          <div className="flex items-center gap-2 mb-2">
+            <Video className="size-4 text-blue-500" />
+            <span className="text-xs font-bold text-foreground">Live Team Call</span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed mb-3">Schedule a synchronous video call or standup with squad members.</p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full text-xs font-bold border-border bg-background hover:bg-muted rounded-lg h-8.5"
+            onClick={() => setIsScheduleCallOpen(true)}
+          >
+            <Plus className="size-3.5 mr-1" /> Schedule Call
+          </Button>
+        </div>
+        
         <div className="space-y-4">
           <p className="text-xs font-extrabold text-muted-foreground tracking-wider uppercase">Meetings & Calendar</p>
           <div className="space-y-2 text-xs font-semibold text-muted-foreground">
@@ -1143,8 +1504,9 @@ ${videoHtml}`
             <div className="grid grid-cols-7 grid-rows-6 flex-1 divide-x divide-y divide-border bg-muted/10">
               {getDaysArray().map(({ date: dateObj, isCurrentMonth }, idx) => {
                 const dayTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === dateObj.toDateString())
+                const userMeetings = scheduledMeetings.filter(m => new Date(m.date).toDateString() === dateObj.toDateString())
                 const dayMockEvents = overlayCalendar ? getMockEvents(dateObj) : []
-                const totalItems = dayTasks.length + dayMockEvents.length
+                const totalItems = dayTasks.length + userMeetings.length + dayMockEvents.length
 
                 const isSelected = selectedDate.toDateString() === dateObj.toDateString()
                 const isToday = today.toDateString() === dateObj.toDateString()
@@ -1190,6 +1552,21 @@ ${videoHtml}`
                             task.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-blue-500'
                           }`} />
                           <span className="truncate">{task.title}</span>
+                        </div>
+                      ))}
+
+                      {userMeetings.slice(0, 1).map(meet => (
+                        <div 
+                          key={meet.id}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedDate(dateObj)
+                            handleJoinMeeting(meet)
+                          }}
+                          className="text-[10px] font-bold py-0.5 px-1.5 rounded truncate border bg-blue-500/10 border-blue-500/30 text-blue-500 flex items-center gap-1 cursor-pointer hover:bg-blue-500/20 transition-colors"
+                        >
+                          <Video className="size-2.5 shrink-0" />
+                          <span className="truncate">{meet.title}</span>
                         </div>
                       ))}
                       
@@ -1259,6 +1636,62 @@ ${videoHtml}`
                   </div>
                 </div>
               )}
+
+              {/* Dedicated Meetings Row */}
+              <div className="grid grid-cols-8 divide-x divide-border items-center relative group/row border-b border-border bg-blue-500/[0.02]" style={{ height: `68px` }}>
+                {/* Team Label */}
+                <div className="h-full bg-card p-4 flex flex-col justify-center border-r border-border shrink-0">
+                  <span className="text-xs font-bold text-foreground max-w-full truncate flex items-center gap-1.5">
+                    <Video className="size-3.5 text-blue-500" /> Scheduled Calls
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-semibold mt-0.5 flex items-center gap-1">
+                    <Badge variant="outline" className="text-[8px] py-0 px-1 font-bold rounded-lg border-blue-500/20 text-blue-500 bg-blue-500/5">
+                      {scheduledMeetings.filter(m => {
+                        const date = new Date(m.date)
+                        return date >= weekStart && date <= weekEnd
+                      }).length} calls
+                    </Badge>
+                  </span>
+                </div>
+
+                {/* Timeline Grid */}
+                <div className="col-span-7 h-full relative p-2 overflow-hidden flex flex-col justify-center">
+                  <div className="absolute inset-0 grid grid-cols-7 divide-x divide-border/30 pointer-events-none">
+                    {Array.from({ length: 7 }).map((_, idx) => (
+                      <div key={idx} className="h-full" />
+                    ))}
+                  </div>
+
+                  {/* Render Scheduled Call Bars */}
+                  {scheduledMeetings.filter(m => {
+                    const date = new Date(m.date)
+                    return date >= weekStart && date <= weekEnd
+                  }).map(meet => {
+                    const date = new Date(meet.date)
+                    const dayIndex = date.getDay()
+                    const leftPct = (dayIndex / 7) * 100
+                    const widthPct = (1 / 7) * 100
+
+                    return (
+                      <div
+                        key={meet.id}
+                        onClick={() => handleJoinMeeting(meet)}
+                        className="absolute h-10 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 px-3 flex items-center justify-between text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer z-20"
+                        style={{
+                          left: `calc(${leftPct}% + 4px)`,
+                          width: `calc(${widthPct}% - 8px)`,
+                          top: `14px`
+                        }}
+                      >
+                        <span className="truncate mr-2 flex items-center gap-1"><Video className="size-3.5 shrink-0" />{meet.title}</span>
+                        <span className="text-[8px] font-black rounded-lg uppercase tracking-wider py-0 px-1.5 bg-blue-500/20 text-blue-550 shrink-0">
+                          {meet.time}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
 
               {/* Rows grouped by Sub-Team */}
               {[...teams, { id: 'unassigned', name: 'Unassigned Tasks' }].map((team, tIdx) => {
@@ -1586,10 +2019,11 @@ ${videoHtml}`
         if (!open) {
           setLoomState('idle')
           setRecordedVideoUrl(null)
+          setRecordedBlob(null)
           setGeneratedShareUrl('')
         }
       }}>
-        <DialogContent className="sm:max-w-lg bg-card border-border text-foreground rounded-xl p-6 shadow-2xl">
+        <DialogContent className="sm:max-w-5xl bg-card border-border text-foreground rounded-2xl p-6 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
               <Sparkles className="size-4.5 text-rose-550" /> Review Loom Video Sync
@@ -1612,54 +2046,107 @@ ${videoHtml}`
               </div>
             ) : (
               <>
-                {recordedVideoUrl && (
-                  <div className="aspect-video w-full rounded-xl overflow-hidden border border-border bg-black shadow-inner">
-                    <video src={recordedVideoUrl} controls autoPlay className="size-full object-contain" />
-                  </div>
-                )}
-
-                {/* Show public share link if rule was created */}
-                {generatedShareUrl && (
-                  <div className="bg-emerald-550/5 border border-emerald-500/20 p-3 rounded-xl flex items-center justify-between gap-3 text-xs">
-                    <div className="min-w-0">
-                      <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-450 block uppercase tracking-wider">Cloud Public Link Generated</span>
-                      <code className="text-foreground/90 font-semibold truncate block mt-0.5">{generatedShareUrl}</code>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
+                {/* Left side: Video & Share link */}
+                <div className="space-y-3.5">
+                  {recordedVideoUrl && (
+                    <div className="aspect-video w-full rounded-xl overflow-hidden border border-border bg-black shadow-inner">
+                      <video 
+                        ref={previewVideoRef}
+                        src={recordedVideoUrl} 
+                        controls 
+                        autoPlay 
+                        className="size-full object-contain" 
+                        onTimeUpdate={(e) => setPreviewTime(e.currentTarget.currentTime)}
+                      />
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleCopyShareUrl}
-                      className="border-border bg-background hover:bg-muted text-xs font-bold px-3 shrink-0 h-8 rounded-lg"
-                    >
-                      {copiedShareUrl ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5 text-muted-foreground" />}
-                    </Button>
+                  )}
+
+                  {/* Show public share link if rule was created */}
+                  {generatedShareUrl && (
+                    <div className="bg-emerald-550/5 border border-emerald-500/20 p-3 rounded-xl flex items-center justify-between gap-3 text-xs">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-450 block uppercase tracking-wider">Cloud Public Link Generated</span>
+                        <code className="text-foreground/90 font-semibold truncate block mt-0.5">{generatedShareUrl}</code>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCopyShareUrl}
+                        className="border-border bg-background hover:bg-muted text-xs font-bold px-3 shrink-0 h-8 rounded-lg"
+                      >
+                        {copiedShareUrl ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5 text-muted-foreground" />}
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sync Title</label>
+                    <Input
+                      value={loomTitle}
+                      onChange={(e) => setLoomTitle(e.target.value)}
+                      placeholder="Status Update title..."
+                      className="h-9 border-border bg-background focus-visible:ring-primary rounded-lg text-sm font-semibold"
+                    />
                   </div>
-                )}
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sync Title</label>
-                  <Input
-                    value={loomTitle}
-                    onChange={(e) => setLoomTitle(e.target.value)}
-                    placeholder="Status Update title..."
-                    className="h-9 border-border bg-background focus-visible:ring-primary rounded-lg text-sm font-semibold"
-                  />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Select Team Squad</label>
+                    <Select value={loomSquadId} onValueChange={setLoomSquadId}>
+                      <SelectTrigger className="h-9 text-xs bg-background border-border rounded-lg font-semibold">
+                        <SelectValue placeholder="Project Backlog (No Squad)" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border">
+                        <SelectItem value="none" className="text-xs cursor-pointer">Project Backlog (No Squad)</SelectItem>
+                        {teams.map(t => (
+                          <SelectItem key={t.id} value={t.id} className="text-xs cursor-pointer">{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Select Team Squad</label>
-                  <Select value={loomSquadId} onValueChange={setLoomSquadId}>
-                    <SelectTrigger className="h-9 text-xs bg-background border-border rounded-lg font-semibold">
-                      <SelectValue placeholder="Project Backlog (No Squad)" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-border">
-                      <SelectItem value="none" className="text-xs cursor-pointer">Project Backlog (No Squad)</SelectItem>
-                      {teams.map(t => (
-                        <SelectItem key={t.id} value={t.id} className="text-xs cursor-pointer">{t.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Right side: Live Transcription */}
+                <div className="flex flex-col border border-border rounded-xl p-4 bg-muted/10 h-full min-h-[300px]">
+                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider mb-2 flex items-center justify-between shrink-0">
+                    <span>✨ Live Transcription Preview</span>
+                    <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary border-primary/20">
+                      {loomTranscript.length > 0 ? "Real-time voice" : "AI Transcribe"}
+                    </Badge>
+                  </label>
+                  <ScrollArea className="flex-1 pr-1 max-h-[340px]">
+                    <div className="space-y-2.5">
+                      {(loomTranscript.length > 0 ? loomTranscript : MOCK_TRANSCRIPT).map((seg, sIdx) => {
+                        const isActive = previewTime >= seg.start && previewTime <= seg.end;
+                        return (
+                          <div
+                            key={sIdx}
+                            onClick={() => handleSeekPreview(seg.start)}
+                            className={`text-xs py-2 px-3 rounded-xl cursor-pointer border transition-all duration-200 ${
+                              isActive
+                                ? 'bg-blue-500/10 border-blue-500/30 text-foreground font-semibold shadow-sm'
+                                : 'bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/5'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className={`text-[8px] font-bold font-mono tracking-wider ${isActive ? 'text-blue-500' : 'text-muted-foreground/60'}`}>
+                                {Math.floor(seg.start / 60)}:{(seg.start % 60).toString().padStart(2, '0')}
+                              </span>
+                              {isActive && <span className="size-1.5 rounded-full bg-blue-500 animate-ping" />}
+                            </div>
+                            <p className="leading-relaxed">{seg.text}</p>
+                          </div>
+                        )
+                      })}
+                      {loomTranscript.length === 0 && (
+                        <p className="text-[10px] text-muted-foreground italic text-center pt-2">
+                          (Speak during recording to generate a real-time transcript, or click preview to see simulated overlay)
+                        </p>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </div>
+              </div>
               </>
             )}
           </div>
@@ -1671,6 +2158,7 @@ ${videoHtml}`
                   onClick={() => {
                     setLoomState('idle')
                     setRecordedVideoUrl(null)
+                    setRecordedBlob(null)
                     setGeneratedShareUrl('')
                   }}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs rounded-lg font-semibold px-4 h-8.5"
@@ -1685,6 +2173,7 @@ ${videoHtml}`
                     onClick={() => {
                       setLoomState('idle')
                       setRecordedVideoUrl(null)
+                      setRecordedBlob(null)
                     }}
                     className="border-border hover:bg-muted text-muted-foreground text-xs rounded-lg font-semibold"
                   >
@@ -1701,6 +2190,88 @@ ${videoHtml}`
               )}
             </DialogFooter>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* SCHEDULE CALL DIALOG */}
+      <Dialog open={isScheduleCallOpen} onOpenChange={setIsScheduleCallOpen}>
+        <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-xl p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
+              <Video className="size-4.5 text-blue-500" /> Schedule Team Video Call
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Meeting Title</label>
+              <Input
+                value={meetingTitle}
+                onChange={(e) => setMeetingTitle(e.target.value)}
+                placeholder="e.g. Sprint Alignment, Quick Sync"
+                className="h-9 border-border bg-background focus-visible:ring-primary rounded-lg text-sm font-semibold"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Time Slot</label>
+                <Select value={meetingTimeSlot} onValueChange={setMeetingTimeSlot}>
+                  <SelectTrigger className="h-9 text-xs bg-background border-border rounded-lg font-semibold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border">
+                    {generateMockTimes(9, 18).map(slot => (
+                      <SelectItem key={slot} value={slot} className="text-xs cursor-pointer">
+                        {formatTimeStr(slot)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Duration</label>
+                <Select value={meetingDuration} onValueChange={setMeetingDuration}>
+                  <SelectTrigger className="h-9 text-xs bg-background border-border rounded-lg font-semibold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border">
+                    <SelectItem value="15m" className="text-xs cursor-pointer">15 Minutes</SelectItem>
+                    <SelectItem value="30m" className="text-xs cursor-pointer">30 Minutes</SelectItem>
+                    <SelectItem value="45m" className="text-xs cursor-pointer">45 Minutes</SelectItem>
+                    <SelectItem value="1h" className="text-xs cursor-pointer">1 Hour</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="bg-muted/30 border border-border p-3.5 rounded-xl text-xs space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-foreground">
+                <CalendarDays className="size-3.5 text-muted-foreground" />
+                <span>Date: {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              </div>
+              <p className="text-muted-foreground font-semibold">This call will be visible on the calendar and timeline. You can click to join the room instantly.</p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 border-t border-border pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsScheduleCallOpen(false)}
+              className="border-border hover:bg-muted text-muted-foreground text-xs rounded-lg font-semibold"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleScheduleMeeting}
+              className="bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg font-semibold px-4"
+            >
+              Schedule Meeting
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

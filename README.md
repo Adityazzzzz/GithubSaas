@@ -1,14 +1,6 @@
 # GitBrain — AI-Powered Codebase Intelligence & Project Management Suite
 A production-grade, highly available SaaS workspace designed to turn repository code, commits, and team meeting records into active, queryable knowledge graphs.
 
-GitBrain is a unified AI-powered codebase intelligence platform and project management suite that turns repositories into active, queryable knowledge graphs.
-
-It features two main environments:
-*   **GitBrain AI Studio**: Chat with your codebase, search semantically, view code history, and transcribe video/audio meeting summaries.
-*   **GitBrain PM Studio**: Manage sprints, Kanban boards, automate workflows, and organize sub-teams with local Loom recording and meeting scheduling.
-
----
-
 📈 System Performance & Impact
 | Metric | Achievement | Impact |
 | :--- | :--- | :--- |
@@ -30,51 +22,41 @@ It features two main environments:
 🧱 System Architecture
 
 ```mermaid
-graph TD
-    subgraph SharedContext [Shared Workspace Core]
-        P[Project Context / CUID]
-        S[AppSidebar Navigation]
-        H[useProject State Synchronization]
-        M[Members / UserToProject Relations]
+flowchart TD
+    %% 1. Shared Workspace Context (Top Layer)
+    subgraph Core [Shared Workspace Core]
+        S[AppSidebar Navigation] --> H[useProject Hook State]
+        H -->|Resolves Slug to CUID| P[Active Project Context]
+        M[Members & Teams]
     end
 
-    subgraph AIStudio [GitBrain AI Studio]
-        D[Codebase Dashboard]
-        Q[Code Q&A Chat Sessions]
-        R[pgvector Semantic Search]
-        ME[Meeting Transcription Processor]
+    %% 2. Workspace Routing (Middle Layer)
+    P -->|Routes to| AI_Studio[GitBrain AI Studio]
+    P -->|Routes to| PM_Studio[GitBrain PM Studio]
+
+    %% 3. AI Studio Operations (Left Vertical Path)
+    subgraph AI [AI Studio]
+        AI_Studio --> D[Codebase Dashboard]
+        AI_Studio --> Q[Q&A Chat Sessions]
+        Q --> R[pgvector Semantic Search]
+        AI_Studio --> ME[Audio Meeting Processor]
     end
 
-    subgraph PMStudio [GitBrain PM Studio]
-        K[Kanban Board]
-        SP[Sprints Controller]
-        AU[Automations Rules Engine]
-        L[Loom Canvas Video Recorder]
+    %% 4. PM Studio Operations (Right Vertical Path)
+    subgraph PM [PM Studio]
+        PM_Studio --> K[Kanban Board]
+        PM_Studio --> SP[Sprints Controller]
+        PM_Studio --> L[Loom Video Recorder]
+        PM_Studio --> AU[Automations Rules]
     end
 
-    %% Flow and Connections
-    H -->|Resolves Slug to CUID| P
-    P -->|Hydrates Project Scope| AIStudio
-    P -->|Hydrates Project Scope| PMStudio
-    M -->|Queries Code & Chats in| Q
-    M -->|Assigned Tasks & Sprints in| K
-    
-    %% Cross-Studio Data Sync
-    ME -->|AI Action Item Generation| K
-    Q -.->|References Code Files inside| K
+    %% 5. Cross-Studio Sync (Bottom Connections)
+    M -.->|Queries Code| Q
+    M -.->|Owns Tasks| K
+    ME ===>|AI Action Items Auto-Create| K
+    Q -.->|References Code in| K
 ```
-```mermaid
-graph TD
-    A[Client Browser] -->|tRPC Queries & Mutations| B[Next.js Server API]
-    A -->|Authentication Sessions| C[Clerk Auth Service]
-    A -->|Video/Audio Assets| D[Appwrite Storage]
-    B -->|Schema Access| E[Prisma ORM]
-    E -->|Relational Queries & Vector Ops| F[PostgreSQL / pgvector]
-    B -->|Audio Transcription| G[AssemblyAI]
-    B -->|AI Embeddings & Summaries| H[Google Gemini AI]
-```
-### Architecture:
-![alt text](image.png)
+
 📚 Deep-Dive Documentation
 For exhaustive technical blueprints, design decisions, and build logs, refer to the following documentation files:
 
@@ -87,12 +69,21 @@ For exhaustive technical blueprints, design decisions, and build logs, refer to 
 4. **[ImpactMetrics.md](./docs/impact-metrics.md)**:
    *Overview*: System performance benchmarks, vector query latency, storage optimization ratios, and onboarding statistics.
 
-
-## 🚀 Key Features
-
-*   **Zero-Config Code RAG Search**: Indexes your repository and processes code summaries using Gemini AI and `pgvector` for similarity matching.
-*   **AI Meeting Transcripts**: Processes audio recordings via AssemblyAI, creating automated sprint issue tickets.
-*   **Interactive Kanban Board & Sprint Controller**: Track tasks, assign priorities, manage timelines, and configure automated task triggers.
-*   **Segmented PM Analytics**: Automated metrics reporting on sprint velocity and task completion rates.
-*   **Loom Video Status Recorder**: Record video updates directly in the browser with screen + camera overlays, backed by Appwrite persistent cloud storage.
-*   **Sleek Modern UI**: Responsive design featuring high-fidelity dark modes, segmented transitions, and an ElevenLabs-style studio workspace switcher.
+⚡ Quick Start
+1. **Local Development Setup**
+   Initialize database schema and run the Next.js development server:
+   ```bash
+   npm install
+   npx prisma db push
+   npm run dev
+   ```
+2. **Database Studio**
+   Inspect relational database tables and models locally:
+   ```bash
+   npx prisma studio
+   ```
+3. **Code Quality Verification**
+   Verify TypeScript compilation and linter rules:
+   ```bash
+   npm run check
+   ```

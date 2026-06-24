@@ -1,66 +1,26 @@
-"use client"
+'use client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import useProject from '@/hooks/use-project'
-import { useUser } from '@clerk/nextjs'
-import { ExternalLink, Github, PenBox } from 'lucide-react'
-import Link from 'next/link'
-import React from 'react'
-import CommitLog from './commit-log'
-import AskQuestionCard from './ask-question-card'
-import MeetingCard from './meeting-card'
-import ArchiveButton from './archieve-button'
-import TeamMembers from './team-members'
-import { NoProjectPlaceholder } from '@/components/no-project-placeholder'
-import dynamic from 'next/dynamic'
-import IndexingStatus from './indexing-status'
-const InviteButton = dynamic(()=>import('./invite-button'),{ssr:false}) 
+import { Loader2 } from 'lucide-react'
 
-const DashboardPage = () => {
-    const {project} = useProject()
-    if (!project) {
-      return <NoProjectPlaceholder />
+export default function DashboardRedirect() {
+  const router = useRouter()
+  const { project, projectId, projects } = useProject()
+
+  useEffect(() => {
+    const activeProject = project || projects?.find(p => p.id === projectId) || projects?.[0]
+    if (activeProject) {
+      const slug = encodeURIComponent(activeProject.name)
+      router.replace(`/${slug}/dashboard`)
+    } else {
+      router.replace('/create')
     }
-    return <>
-        <div>
-            {project?.name}
-            <div className='flex items-center justify-between flex-wrap gap-y-4'>
-                {/* github link */}
-                <div className='w-fit rounded-md bg-primary px-4 py-3'>
-                    <div className='flex items-center'>
-                        <Github className='size-5 text-white' />
-                        <div className='ml-2'>
-                            <p className='text-sm font-medium text-white'>
-                                This project is linked to {' '}
-                                <Link href={project?.githubUrl??""} className='inline-flex items-center text-white/80 hover:underline'>
-                                    {project?.githubUrl}
-                                    <ExternalLink className='ml-1 size-4'/>
-                                </Link>
-                            </p>
-                        </div>
-                    </div>
-                </div>
+  }, [project, projectId, projects, router])
 
-                <div className="h-4"></div>
-                <div className='flex items-center gap-4'>
-                    <TeamMembers/>
-                    <InviteButton />
-                    <ArchiveButton/>
-                </div>
-            </div>
-
-            <IndexingStatus />
-
-            <div className="mt-4">
-                <div className='grid grid-cols-1 gap-4 sm:grid-cols-5'>
-                    <AskQuestionCard/>
-                    <MeetingCard/>
-                </div>
-            </div>
-
-            <div className="mt-8"></div>
-            <CommitLog/>
-        </div>
-        
-    </>
+  return (
+    <div className="flex h-[50vh] w-full items-center justify-center">
+      <Loader2 className="size-8 animate-spin text-muted-foreground" />
+    </div>
+  )
 }
-
-export default DashboardPage

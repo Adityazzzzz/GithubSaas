@@ -5,10 +5,16 @@ import { Input } from "@/components/ui/input"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import useProject from "@/hooks/use-project"
 import { cn } from "@/lib/utils"
-import { Bot, CreditCard, LayoutDashboard, Plus, Presentation, Archive, Search, FolderTree, BarChart3, GitCommit, GitPullRequest, Shield, BookOpen } from "lucide-react"
+import { Bot, CreditCard, LayoutDashboard, Plus,ChevronsUpDown, Presentation, Archive, Search, FolderTree, BarChart3, GitCommit, GitPullRequest, Shield, BookOpen, Kanban, ChevronDown, Sparkles, CalendarDays, Users, CloudLightning } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const items = [
     {
@@ -76,11 +82,44 @@ const options=[
     },
 ]
 
+const pmItems = [
+  {
+    title: "Kanban Board",
+    tab: "board",
+    icon: Kanban,
+  },
+  {
+    title: "Calendar",
+    tab: "calendar",
+    icon: CalendarDays,
+  },
+  {
+    title: "Sub-Teams",
+    tab: "teams",
+    icon: Users,
+  },
+  {
+    title: "Automations",
+    tab: "automations",
+    icon: CloudLightning,
+  },
+  {
+    title: "Analytics",
+    tab: "analytics",
+    icon: BarChart3,
+  },
+]
+
 export function AppSidebar(){
     const pathname = usePathname()
+    const router = useRouter()
+    const searchParams = useSearchParams()
     const {open} = useSidebar()
-    const {projects,projectId,setProjectId} = useProject()
+    const {projects,project,projectId,setProjectId} = useProject()
     const [searchTerm, setSearchTerm] = useState('')
+    const projectSlug = project?.name ? encodeURIComponent(project.name) : projectId
+
+    const isPmStudio = pathname.includes('/pmstudio')
 
     const filteredProjects = projects?.filter(project => 
         project.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -93,28 +132,166 @@ export function AppSidebar(){
                         <GitBrainLogo />
                     </SidebarMenuItem>
                 </SidebarMenu>
+
+               {/* Advanced Studio Switcher Dropdown (ElevenLabs Style) */}
+              <div className={cn(
+                "select-none transition-all duration-200", 
+                open ? "px-2 mt-4 mb-2" : "mt-2 mb-1 flex w-full justify-center"
+              )}>
+                {open ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-between items-center px-2.5 h-10 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 rounded-[10px] shadow-sm transition-all duration-200 group bg-transparent"
+                      >
+                        <div className="flex items-center gap-2.5 text-left">
+                          {/* Dynamic Orb Icon Box for Trigger (Slimmer) */}
+                          <div className="size-6 rounded-md border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm">
+                            <div className={cn(
+                              "size-3 rounded-full shadow-[inset_0_-1.5px_3px_rgba(0,0,0,0.2)]",
+                              isPmStudio 
+                                ? "bg-gradient-to-br from-emerald-300 via-teal-500 to-emerald-700" 
+                                : "bg-gradient-to-br from-blue-300 via-indigo-500 to-purple-600"
+                            )} />
+                          </div>
+                          
+                          {/* Single line text for a slim button */}
+                          <span className="text-[13px] font-medium text-foreground tracking-tight">
+                            {isPmStudio ? "GitBrain PM Studio" : "GitBrain AI Studio"}
+                          </span>
+                        </div>
+                        <ChevronsUpDown className="size-3.5 text-muted-foreground shrink-0 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    
+                    <DropdownMenuContent className="w-[280px] rounded-xl p-1.5 shadow-xl border-zinc-200 dark:border-zinc-800 bg-background" align="start">
+                      <DropdownMenuItem 
+                        onClick={() => { if (isPmStudio) router.push(`/${projectSlug}/dashboard`) }}
+                        className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors focus:bg-zinc-50 dark:focus:bg-zinc-800/80"
+                      >
+                        {/* AI Studio Orb */}
+                        <div className="size-8 rounded-[8px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                          <div className="size-3.5 rounded-full bg-gradient-to-br from-blue-300 via-indigo-500 to-purple-600 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2)]" />
+                        </div>
+                        <div className="flex flex-col min-w-0 gap-0.5">
+                          <span className="text-[13px] font-medium text-foreground">GitBrain AI Studio</span>
+                          <span className="text-[12px] text-muted-foreground leading-tight">Codebase Chat, Q&A, meetings</span>
+                        </div>
+                      </DropdownMenuItem>
+                      
+                      {/* Subtle Divider */}
+                      <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-1 -mx-1.5" />
+                      
+                      <DropdownMenuItem 
+                        onClick={() => { if (!isPmStudio) router.push(`/${projectSlug}/pmstudio?tab=board`) }}
+                        className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors focus:bg-zinc-50 dark:focus:bg-zinc-800/80"
+                      >
+                        {/* PM Studio Orb */}
+                        <div className="size-8 rounded-[8px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                          <div className="size-3.5 rounded-full bg-gradient-to-br from-emerald-300 via-teal-500 to-emerald-700 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2)]" />
+                        </div>
+                        <div className="flex flex-col min-w-0 gap-0.5">
+                          <span className="text-[13px] font-medium text-foreground">GitBrain PM Studio</span>
+                          <span className="text-[12px] text-muted-foreground leading-tight">Kanban board, calendar, teams</span>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      {/* Removed mx-auto, my-2, changed size-10 to size-8 for proper alignment */}
+                      <Button 
+                        variant="outline" 
+                        className="size-8 rounded-xl p-0 flex items-center justify-center shrink-0 border-zinc-200 dark:border-zinc-800 shadow-sm bg-transparent hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-all duration-200 group"
+                      >
+                        <div className="size-5 rounded-[6px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center transition-transform duration-200 group-hover:scale-105 shadow-sm">
+                          <div className={cn(
+                              "size-2 rounded-full shadow-[inset_0_-1px_2px_rgba(0,0,0,0.2)]",
+                              isPmStudio 
+                                ? "bg-gradient-to-br from-emerald-300 via-teal-500 to-emerald-700" 
+                                : "bg-gradient-to-br from-blue-300 via-indigo-500 to-purple-600"
+                            )} />
+                        </div>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    
+                    <DropdownMenuContent className="w-[280px] rounded-xl p-1.5 shadow-xl border-zinc-200 dark:border-zinc-800 bg-background" align="start" side="right">
+                      {/* Same inner dropdown content for the closed state */}
+                      <DropdownMenuItem 
+                        onClick={() => { if (isPmStudio) router.push(`/${projectSlug}/dashboard`) }}
+                        className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors focus:bg-zinc-50 dark:focus:bg-zinc-800/80"
+                      >
+                        <div className="size-8 rounded-[8px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                          <div className="size-3.5 rounded-full bg-gradient-to-br from-blue-300 via-indigo-500 to-purple-600 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2)]" />
+                        </div>
+                        <div className="flex flex-col min-w-0 gap-0.5">
+                          <span className="text-[13px] font-medium text-foreground">GitBrain AI Studio</span>
+                          <span className="text-[12px] text-muted-foreground leading-tight">Codebase Chat, Q&A, meetings</span>
+                        </div>
+                      </DropdownMenuItem>
+                      
+                      <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-1 -mx-1.5" />
+                      
+                      <DropdownMenuItem 
+                        onClick={() => { if (!isPmStudio) router.push(`/${projectSlug}/pmstudio?tab=board`) }}
+                        className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors focus:bg-zinc-50 dark:focus:bg-zinc-800/80"
+                      >
+                        <div className="size-8 rounded-[8px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                          <div className="size-3.5 rounded-full bg-gradient-to-br from-emerald-300 via-teal-500 to-emerald-700 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2)]" />
+                        </div>
+                        <div className="flex flex-col min-w-0 gap-0.5">
+                          <span className="text-[13px] font-medium text-foreground">GitBrain PM Studio</span>
+                          <span className="text-[12px] text-muted-foreground leading-tight">Kanban board, calendar, teams</span>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </SidebarHeader>
 
             <SidebarContent>
                 <SidebarGroup>
                     <SidebarGroupLabel>
-                        Application
+                        {isPmStudio ? "PM Studio Menu" : "AI Studio Menu"}
                     </SidebarGroupLabel>
                     
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {items.map(i=>{
+                            {isPmStudio ? (
+                              pmItems.map(i => {
+                                const href = `/${projectSlug}/pmstudio?tab=${i.tab}`
+                                const currentTab = searchParams.get('tab') || 'board'
+                                const isActive = currentTab === i.tab
                                 return (
-                                    <SidebarMenuItem key={i.title}>
-                                        <SidebarMenuButton asChild>
-                                            <Link href={i.url} className={cn({'bg-primary! text-white!':pathname === i.url},'list-none')}>
-                                                <i.icon/>
-                                                <span>{i.title}</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
+                                  <SidebarMenuItem key={i.title}>
+                                    <SidebarMenuButton asChild>
+                                      <Link href={href} className={cn({'bg-primary! text-white!': isActive}, 'list-none')}>
+                                        <i.icon />
+                                        <span>{i.title}</span>
+                                      </Link>
+                                    </SidebarMenuButton>
+                                  </SidebarMenuItem>
                                 )
-                            })}
+                              })
+                            ) : (
+                              items.map(i => {
+                                const href = i.title === "PM Studio" ? `/${projectSlug}/pmstudio?tab=board` : `/${projectSlug}${i.url}`
+                                const isActive = pathname === href || (i.title === "PM Studio" && pathname.includes('/pmstudio'))
+                                return (
+                                  <SidebarMenuItem key={i.title}>
+                                    <SidebarMenuButton asChild>
+                                      <Link href={href} className={cn({'bg-primary! text-white!': isActive}, 'list-none')}>
+                                        <i.icon />
+                                        <span>{i.title}</span>
+                                      </Link>
+                                    </SidebarMenuButton>
+                                  </SidebarMenuItem>
+                                )
+                              })
+                            )}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
@@ -144,7 +321,18 @@ export function AppSidebar(){
                                     <SidebarMenuItem key={project.name}>
                                         <SidebarMenuButton asChild>
                                             <div 
-                                                onClick={() => setProjectId(project.id)} 
+                                                onClick={() => {
+                                                  setProjectId(project.id)
+                                                  const cleanOldSlug = pathname.split('/')[1]
+                                                  const isProjectRoute = projects?.some(p => encodeURIComponent(p.name) === cleanOldSlug || p.id === cleanOldSlug)
+                                                  const newSlug = encodeURIComponent(project.name)
+                                                  if (isProjectRoute && cleanOldSlug) {
+                                                    const newPath = pathname.replace(`/${cleanOldSlug}`, `/${newSlug}`)
+                                                    router.push(newPath)
+                                                  } else {
+                                                    router.push(`/${newSlug}/dashboard`)
+                                                  }
+                                                }} 
                                                 className="cursor-pointer flex items-center gap-2"
                                             >
                                                 <div className={cn(

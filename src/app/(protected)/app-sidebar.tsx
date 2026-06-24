@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import useProject from "@/hooks/use-project"
 import { cn } from "@/lib/utils"
-import { Bot, CreditCard, LayoutDashboard, Plus, Presentation, Archive, Search, FolderTree, BarChart3, GitCommit, GitPullRequest, Shield, BookOpen, Kanban, ChevronDown, Sparkles, CalendarDays, Users, CloudLightning } from "lucide-react"
+import { Bot, CreditCard, LayoutDashboard, Plus,ChevronsUpDown, Presentation, Archive, Search, FolderTree, BarChart3, GitCommit, GitPullRequest, Shield, BookOpen, Kanban, ChevronDown, Sparkles, CalendarDays, Users, CloudLightning } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
@@ -138,80 +138,119 @@ export function AppSidebar(){
                     </SidebarMenuItem>
                 </SidebarMenu>
 
-                {/* Studio Switcher Dropdown */}
-                {open ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="w-full justify-between items-center px-3 py-5 hover:bg-muted/50 rounded-xl border border-border/40 shadow-sm mt-2 mb-2 h-auto">
-                        <div className="flex flex-col items-start leading-none text-left">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Studio</span>
-                          <span className="text-sm font-bold text-foreground mt-1">
-                            {isPmStudio ? "PM Studio" : "AI Studio"}
-                          </span>
-                        </div>
-                        <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-[200px] rounded-xl border-border p-1.5 shadow-xl" align="start">
-                      <DropdownMenuItem 
-                        onClick={() => {
-                          if (isPmStudio) {
-                            router.push(`/${projectSlug}/dashboard`)
-                          }
-                        }}
-                        className={cn("flex items-center justify-between p-2.5 rounded-lg cursor-pointer text-sm font-semibold", { "bg-muted text-primary": !isPmStudio })}
-                      >
-                        <span>AI Studio</span>
-                        {!isPmStudio && <div className="size-1.5 rounded-full bg-primary" />}
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem 
-                        onClick={() => {
-                          if (!isPmStudio) {
-                            router.push(`/${projectSlug}/pmstudio?tab=board`)
-                          }
-                        }}
-                        className={cn("flex items-center justify-between p-2.5 rounded-lg cursor-pointer text-sm font-semibold mt-1", { "bg-muted text-primary": isPmStudio })}
-                      >
-                        <span>PM Studio</span>
-                        {isPmStudio && <div className="size-1.5 rounded-full bg-primary" />}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="size-10 rounded-lg p-0 flex items-center justify-center mx-auto my-2 shrink-0 border border-border/40 shadow-sm hover:bg-muted/50 font-bold text-xs">
-                        {isPmStudio ? "PM" : "AI"}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-[180px] rounded-xl border-border p-1.5 shadow-xl" align="start" side="right">
-                      <DropdownMenuItem 
-                        onClick={() => {
-                          if (isPmStudio) {
-                            router.push(`/${projectSlug}/dashboard`)
-                          }
-                        }}
-                        className={cn("flex items-center justify-between p-2.5 rounded-lg cursor-pointer text-sm font-semibold", { "bg-muted text-primary": !isPmStudio })}
-                      >
-                        <span>AI Studio</span>
-                        {!isPmStudio && <div className="size-1.5 rounded-full bg-primary" />}
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem 
-                        onClick={() => {
-                          if (!isPmStudio) {
-                            router.push(`/${projectSlug}/pmstudio?tab=board`)
-                          }
-                        }}
-                        className={cn("flex items-center justify-between p-2.5 rounded-lg cursor-pointer text-sm font-semibold mt-1", { "bg-muted text-primary": isPmStudio })}
-                      >
-                        <span>PM Studio</span>
-                        {isPmStudio && <div className="size-1.5 rounded-full bg-primary" />}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+               {/* Advanced Studio Switcher Dropdown (ElevenLabs Style) */}
+<div className="px-2 mt-4 mb-2 select-none">
+  {open ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="outline" 
+          className="w-full justify-between items-center px-2.5 h-10 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 rounded-[10px] shadow-sm transition-all duration-200 group bg-transparent"
+        >
+          <div className="flex items-center gap-2.5 text-left">
+            {/* Dynamic Orb Icon Box for Trigger (Slimmer) */}
+            <div className="size-6 rounded-md border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm">
+              <div className={cn(
+                "size-3 rounded-full shadow-[inset_0_-1.5px_3px_rgba(0,0,0,0.2)]",
+                isPmStudio 
+                  ? "bg-gradient-to-br from-emerald-300 via-teal-500 to-emerald-700" 
+                  : "bg-gradient-to-br from-blue-300 via-indigo-500 to-purple-600"
+              )} />
+            </div>
+            
+            {/* Single line text for a slim button */}
+            <span className="text-[13px] font-medium text-foreground tracking-tight">
+              {isPmStudio ? "GitBrain PM Studio" : "GitBrain AI Studio"}
+            </span>
+          </div>
+          <ChevronsUpDown className="size-3.5 text-muted-foreground shrink-0 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      
+      <DropdownMenuContent className="w-[280px] rounded-xl p-1.5 shadow-xl border-zinc-200 dark:border-zinc-800 bg-background" align="start">
+        <DropdownMenuItem 
+          onClick={() => { if (isPmStudio) router.push(`/${projectSlug}/dashboard`) }}
+          className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors focus:bg-zinc-50 dark:focus:bg-zinc-800/80"
+        >
+          {/* AI Studio Orb */}
+          <div className="size-8 rounded-[8px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+            <div className="size-3.5 rounded-full bg-gradient-to-br from-blue-300 via-indigo-500 to-purple-600 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2)]" />
+          </div>
+          <div className="flex flex-col min-w-0 gap-0.5">
+            <span className="text-[13px] font-medium text-foreground">GitBrain AI Studio</span>
+            <span className="text-[12px] text-muted-foreground leading-tight">Codebase Chat, Q&A, meetings</span>
+          </div>
+        </DropdownMenuItem>
+        
+        {/* Subtle Divider */}
+        <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-1 -mx-1.5" />
+        
+        <DropdownMenuItem 
+          onClick={() => { if (!isPmStudio) router.push(`/${projectSlug}/pmstudio?tab=board`) }}
+          className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors focus:bg-zinc-50 dark:focus:bg-zinc-800/80"
+        >
+          {/* PM Studio Orb */}
+          <div className="size-8 rounded-[8px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+            <div className="size-3.5 rounded-full bg-gradient-to-br from-emerald-300 via-teal-500 to-emerald-700 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2)]" />
+          </div>
+          <div className="flex flex-col min-w-0 gap-0.5">
+            <span className="text-[13px] font-medium text-foreground">GitBrain PM Studio</span>
+            <span className="text-[12px] text-muted-foreground leading-tight">Kanban board, calendar, teams</span>
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="outline" 
+          className="size-10 rounded-xl p-0 flex items-center justify-center mx-auto my-2 shrink-0 border-zinc-200 dark:border-zinc-800 shadow-sm bg-transparent hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-all duration-200 group"
+        >
+          <div className="size-6 rounded-[8px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center transition-transform duration-200 group-hover:scale-105 shadow-sm">
+             <div className={cn(
+                "size-2.5 rounded-full shadow-[inset_0_-1px_2px_rgba(0,0,0,0.2)]",
+                isPmStudio 
+                  ? "bg-gradient-to-br from-emerald-300 via-teal-500 to-emerald-700" 
+                  : "bg-gradient-to-br from-blue-300 via-indigo-500 to-purple-600"
+              )} />
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
+      
+      <DropdownMenuContent className="w-[280px] rounded-xl p-1.5 shadow-xl border-zinc-200 dark:border-zinc-800 bg-background" align="start" side="right">
+        {/* Same inner dropdown content for the closed state */}
+        <DropdownMenuItem 
+          onClick={() => { if (isPmStudio) router.push(`/${projectSlug}/dashboard`) }}
+          className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors focus:bg-zinc-50 dark:focus:bg-zinc-800/80"
+        >
+          <div className="size-8 rounded-[8px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+            <div className="size-3.5 rounded-full bg-gradient-to-br from-blue-300 via-indigo-500 to-purple-600 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2)]" />
+          </div>
+          <div className="flex flex-col min-w-0 gap-0.5">
+            <span className="text-[13px] font-medium text-foreground">GitBrain AI Studio</span>
+            <span className="text-[12px] text-muted-foreground leading-tight">Codebase Chat, Q&A, meetings</span>
+          </div>
+        </DropdownMenuItem>
+        
+        <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-1 -mx-1.5" />
+        
+        <DropdownMenuItem 
+          onClick={() => { if (!isPmStudio) router.push(`/${projectSlug}/pmstudio?tab=board`) }}
+          className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors focus:bg-zinc-50 dark:focus:bg-zinc-800/80"
+        >
+          <div className="size-8 rounded-[8px] border border-zinc-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+            <div className="size-3.5 rounded-full bg-gradient-to-br from-emerald-300 via-teal-500 to-emerald-700 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2)]" />
+          </div>
+          <div className="flex flex-col min-w-0 gap-0.5">
+            <span className="text-[13px] font-medium text-foreground">GitBrain PM Studio</span>
+            <span className="text-[12px] text-muted-foreground leading-tight">Kanban board, calendar, teams</span>
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )}
+</div>
             </SidebarHeader>
 
             <SidebarContent>

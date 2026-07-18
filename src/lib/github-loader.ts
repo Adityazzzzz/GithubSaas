@@ -75,31 +75,85 @@ export const indexGithubRepo = async (projectId: string, githubUrl: string, gith
             data: { totalFiles: docs.length, branch },
         });
 
-        const embeddings = await generateEmbeddings(docs, projectId);
+        // 1. Fetch existing embeddings
+        const existingEmbeddings = await db.sourceCodeEmbedding.findMany({
+            where: { projectId },
+            select: { id: true, fileName: true, sourceCode: true },
+        });
+        const existingMap = new Map(existingEmbeddings.map((e) => [e.fileName, e]));
+
+        // 2. Identify deleted files
+        const currentFileNames = new Set(docs.map((d) => d.metadata.source));
+        const deletedFileNames = existingEmbeddings
+            .map((e) => e.fileName)
+            .filter((name) => !currentFileNames.has(name));
+
+        if (deletedFileNames.length > 0) {
+            await db.sourceCodeEmbedding.deleteMany({
+                where: {
+                    projectId,
+                    fileName: { in: deletedFileNames },
+                },
+            });
+            console.log(`🗑️ Deleted ${deletedFileNames.length} stale embeddings from DB.`);
+        }
+
+        // 3. Filter added/modified files
+        const filesToProcess = docs.filter((doc) => {
+            const existing = existingMap.get(doc.metadata.source);
+            if (!existing) return true; // New file
+            return existing.sourceCode !== doc.pageContent; // Modified file
+        });
+
+        console.log(`📊 Incremental Indexing: ${filesToProcess.length} files to process out of ${docs.length} total files.`);
+
+        if (filesToProcess.length === 0) {
+            console.log("⚡ No files added or modified. Skipping embedding generation.");
+            await db.project.update({
+                where: { id: projectId },
+                data: { indexingStatus: 'READY', indexingProgress: docs.length },
+            });
+            return;
+        }
+
+        const alreadyIndexedCount = docs.length - filesToProcess.length;
+        const embeddings = await generateEmbeddings(filesToProcess, docs.length, alreadyIndexedCount, projectId);
 
         await Promise.allSettled(
             embeddings.map(async (result) => {
                 if (!result) return;
                 try {
-                    const existing = await db.sourceCodeEmbedding.findFirst({
-                        where: { projectId, fileName: result.fileName },
-                    });
-                    if (existing) return;
-
-                    const row = await db.sourceCodeEmbedding.create({
-                        data: {
-                            projectId,
-                            summary: result.summary,
-                            sourceCode: result.sourceCode,
-                            fileName: result.fileName,
-                        },
-                    });
-
-                    await db.$executeRaw`
-                        UPDATE "SourceCodeEmbedding"
-                        SET "summaryEmbedding" = ${result.embedding}::vector
-                        WHERE "id" = ${row.id}
-                    `;
+                    const existing = existingMap.get(result.fileName);
+                    if (existing) {
+                        // Update existing file's summary and content
+                        await db.sourceCodeEmbedding.update({
+                            where: { id: existing.id },
+                            data: {
+                                summary: result.summary,
+                                sourceCode: result.sourceCode,
+                            },
+                        });
+                        await db.$executeRaw`
+                            UPDATE "SourceCodeEmbedding"
+                            SET "summaryEmbedding" = ${result.embedding}::vector
+                            WHERE "id" = ${existing.id}
+                        `;
+                    } else {
+                        // Insert new file
+                        const row = await db.sourceCodeEmbedding.create({
+                            data: {
+                                projectId,
+                                summary: result.summary,
+                                sourceCode: result.sourceCode,
+                                fileName: result.fileName,
+                            },
+                        });
+                        await db.$executeRaw`
+                            UPDATE "SourceCodeEmbedding"
+                            SET "summaryEmbedding" = ${result.embedding}::vector
+                            WHERE "id" = ${row.id}
+                        `;
+                    }
                 } catch (e) {
                     console.error("Indexing failed for file:", result.fileName, e);
                 }
@@ -126,7 +180,12 @@ export const indexGithubRepo = async (projectId: string, githubUrl: string, gith
  * Each file requires 2 API calls (summarize + embed), so with 15 RPM limit,
  * we process 1 file every ~8 seconds to stay well under the limit.
  */
-const generateEmbeddings = async (docs: Document[], projectId: string) => {
+const generateEmbeddings = async (
+    docs: Document[],
+    totalFilesCount: number,
+    alreadyIndexedCount: number,
+    projectId: string
+) => {
     const results: Array<{
         summary: string;
         embedding: number[];
@@ -153,10 +212,10 @@ const generateEmbeddings = async (docs: Document[], projectId: string) => {
                 fileName: doc.metadata.source,
             });
 
-            // Update progress in DB
+            // Update progress in DB dynamically
             await db.project.update({
                 where: { id: projectId },
-                data: { indexingProgress: i + 1 },
+                data: { indexingProgress: alreadyIndexedCount + i + 1 },
             }).catch(() => {});
 
         } catch (error) {

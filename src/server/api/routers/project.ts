@@ -223,6 +223,29 @@ export const projectRouter = createTRPCRouter({
         return { restored: true };
     }),
 
+    // 11.5 Sync/Refresh Project
+    syncProject: projectProcedure.input(z.object({ projectId: z.string() })).mutation(async ({ ctx, input }) => {
+        const project = await ctx.db.project.findUnique({
+            where: { id: input.projectId },
+        });
+        if (!project) throw new Error('Project not found');
+
+        await ctx.db.project.update({
+            where: { id: input.projectId },
+            data: {
+                indexingStatus: "PENDING",
+                indexingProgress: 0,
+            },
+        });
+
+        // Fire-and-forget background re-indexing
+        indexGithubRepo(input.projectId, project.githubUrl)
+            .then(() => pollCommits(input.projectId))
+            .catch(console.error);
+
+        return { syncing: true };
+    }),
+
     // 12. PERMANENT DELETE (Only allowed on archived projects)
     deleteProject: projectProcedure.input(z.object({ projectId: z.string() })).mutation(async ({ ctx, input }) => {
         const project = await ctx.db.project.findUnique({

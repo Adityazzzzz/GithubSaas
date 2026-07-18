@@ -36,14 +36,35 @@ export async function POST(req: NextRequest) {
                 summary: summary.summary,
                 meetingId,
             })),
-        })
+        });
+
+        // Automatically convert meeting issues to active Kanban (PmTask) tickets
+        let currentTaskCount = await db.pmTask.count({
+            where: { projectId },
+        });
+
+        for (const summary of summaries) {
+            currentTaskCount++;
+            const issueKey = `GB-${currentTaskCount}`;
+            await db.pmTask.create({
+                data: {
+                    projectId,
+                    title: summary.headline,
+                    description: `${summary.gist}\n\nTimestamp: ${summary.start} - ${summary.end}\n\nGenerated from Meeting ID: ${meetingId}`,
+                    priority: "MEDIUM",
+                    status: "TODO",
+                    issueKey,
+                },
+            });
+        }
+
         await db.meeting.update({
             where:{id:meetingId},
             data:{
                 status:"COMPLETED",
                 name: summaries[0]?.headline ?? "Untitled Meeting"
             }
-        })
+        });
 
         return NextResponse.json({success:true},{status:200});
     } 

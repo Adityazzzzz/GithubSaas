@@ -118,9 +118,12 @@ export async function generateEmbedding(summary: string): Promise<number[]> {
   return withRetry(
     async () => {
       const embeddingModel = genAI.getGenerativeModel({
-        model: "text-embedding-004",
+        model: "gemini-embedding-001",
       });
-      const result = await embeddingModel.embedContent(summary);
+      const result = await embeddingModel.embedContent({
+        content: { parts: [{ text: summary }] },
+        outputDimensionality: 768,
+      });
       return result.embedding.values;
     },
     { maxRetries: 5, baseDelay: 1000, label: "generate-embedding" }
